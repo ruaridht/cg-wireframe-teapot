@@ -19,6 +19,32 @@ int nCols = 480;
 
 TriangleMesh trig;
 
+void MidpointLine(int x1, int y1, int x2, int y2)
+{
+  int dx = x2-x1;
+  int dy = y2-y1;
+  int d = 2*dy-dx;
+  int increE = 2*dx;
+  int incrNE = 2*(dy-dx);
+  int x = x1;
+  int y = y1;
+  //WritePixel(x,y);
+  glVertex2i(x,y);
+  
+  while (x < x2) {
+    if (d <= 0) {
+      d += increE;
+      x++;
+    } else {
+      d += incrNE;
+      x++;
+      y++;
+    }
+    //WritePixel(x,y);
+    glVertex2i(x,y);
+  }
+}
+
 void TriangleMesh::loadFile(char * filename)
 {
 	ifstream f(filename);
@@ -99,7 +125,7 @@ void myDisplay()
 	/*** clear the Zbuffer here ****/
 
 	int trignum = trig.trigNum();
-	Vector3f v1,v2, v3;
+	Vector3f v1, v2, v3;
 
 	glColor3f(1,1,1);  // change the colour of the pixel
 
@@ -109,7 +135,7 @@ void myDisplay()
 	// project them on the xy plane, and color the corresponding pixel by white
 	//
 
-	for (int i = 0 ; i < trignum; i++)  
+	for (int i = 0 ; i < trignum-1; i++)  
 	{
 		/*** do the rasterization of the triangles here using glRecti ***/
 		trig.getTriangleVertices(i, v1,v2,v3);
@@ -119,11 +145,19 @@ void myDisplay()
 		// (just doing parallel projectiion to the xy plane. 
 		// only use glBegin(GL_POINTS) for rendering the scene  
 		//
-		glBegin(GL_POINTS);	
+		glBegin(GL_POINTS);
+		//glBegin(GL_LINES);	
 			glVertex2i((int)v1[0],(int)v1[1]);
 			glVertex2i((int)v2[0],(int)v2[1]);
 			glVertex2i((int)v3[0],(int)v3[1]);
-		glEnd();	
+			//MidpointLine((int)v1[0],(int)v1[1],(int)v2[0],(int)v2[1]);
+			//MidpointLine((int)v1[0],(int)v1[1],(int)v3[0],(int)v3[1]);
+			//MidpointLine((int)v2[0],(int)v2[1],(int)v3[0],(int)v3[1]);
+			//MidpointLine((int)v2[0],(int)v2[1],(int)v1[0],(int)v1[1]);
+			//MidpointLine((int)v3[0],(int)v3[1],(int)v1[0],(int)v1[1]);
+			//MidpointLine((int)v3[0],(int)v3[1],(int)v2[0],(int)v2[1]);
+		glEnd();
+		
 	}
 
 	glFlush();// Output everything

@@ -1,3 +1,13 @@
 .DS_Store
 demo1
 a.out
+scenes/violin_case.obj
+scenes/cube.obj
+scenes/bunny_200.obj
+scenes/bunny_1k.obj
+scenes/bunny_5k.obj
+scenes/bunny_40k.obj
+scenes/teddy.obj
+scenes/mini_obj.obj
+scenes/cow-nonormals.obj
+scenes/pumpkin_tall_10k.obj
