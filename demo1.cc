@@ -11,6 +11,7 @@
 #include <iostream>
 #include <fstream>
 #include "demo1.h"
+#include "math.h"
 
 using namespace std;
 
@@ -19,12 +20,136 @@ int nCols = 480;
 
 TriangleMesh trig;
 
+void XwPlot(int x, int y, float c)
+{
+  glColor4f(1,1,1,c);
+  glVertex2i(x,y);
+  glColor4f(1,1,1,1);
+}
+
+int XwRound(int n)
+{
+  return (float)floor(n + 0.5);
+}
+
+float XwFpart(float n)
+{
+  return (float)(n - floor(n));
+}
+
+float XwRfpart(float n)
+{
+  return (float)(1.0 - XwFpart(n));
+}
+
+float XwIpart(float n)
+{
+  return (float)floor(n);
+}
+
+void XiaolinWu(int x1, int y1, int x2, int y2)
+{
+  int dx = x2-x1;
+  int dy = y2-y1;
+  int tempx1, tempx2, tempdx;
+  float gradient;
+  float xend, yend, xgap, xpx11, ypx11, xpx12, ypx12, intery;
+  
+  if (fabs(dx) < fabs(dy)) {
+    tempx1 = x1;
+    tempx2 = x2;
+    x1 = y1;
+    x2 = y2;
+    y1 = tempx1;
+    y2 = tempx2;
+    tempdx = dx;
+    dx = dy;
+    dy = tempdx;
+  }
+  if (x2 < x1) {
+    tempx1 = x1;
+    tempx2 = y1;
+    x1 = x2;
+    x2 = tempx1;
+    y1 = y2;
+    y2 = tempx2;
+  }
+  gradient = (float)dy/dx;
+  
+  // handle first endpoint
+  xend = (float)XwRound(x2);
+  yend = (float)(y1 + gradient*(xend - x1));
+  xgap = XwRfpart((float)(x1 + 0.5));
+  xpx11 = xend;
+  ypx11 = XwIpart((float)yend);
+  XwPlot((int)xpx11,(int)ypx11, XwRfpart(yend)*xgap);
+  XwPlot((int)xpx11,(int)ypx11+1,XwFpart(yend)*xgap);
+  intery = yend + gradient;
+  
+  // handle second endpoint
+  xend = XwRound(x2);
+  yend = y2 + gradient * (xend-x2);
+  xgap = XwFpart(x2+0.5);
+  xpx12 = xend;
+  ypx12 = XwIpart(yend);
+  XwPlot(xpx12, ypx12, XwRfpart(yend)*xgap);
+  XwPlot(xpx12, ypx12+1, XwFpart(yend)*xgap);
+  
+  // main loop
+  for (float x=(xpx11+1); x<=(xpx12-1); x++) {
+    XwPlot((int)x,(int)XwIpart(intery),XwRfpart(intery));
+    XwPlot((int)x,(int)XwIpart(intery)+1,XwFpart(intery));
+    intery += gradient;
+  }
+}
+
+void Bresenham(int x1, int y1, int x2, int y2)
+{
+  int slope;
+  int dx, dy, incE, incNE, d, x, y;
+  
+  // Reverse lines where x1 > x2
+  if (x1 > x2) {
+    Bresenham(x2,y2,x1,y1);
+    return;
+  }
+  
+  dx = x2-x1;
+  dy = y2-y1;
+  
+  // Adjust y-increment for negatively sloped lines
+  if (dy < 0) {
+    slope = -1;
+    dy = -dy;
+  } else {
+    slope = 1;
+  }
+  
+  // Bresenham constants
+  incE = 2*dy;
+  incNE = (2*dy)-(2*dx);
+  d = (2*dy)-dx;
+  y = y1;
+  
+  // Blit
+  for (x=x1; x<=x2; x++) {
+    glVertex2i(x,y);
+    
+    if (d <= 0) {
+      d += incE;
+    } else {
+      d += incNE;
+      y += slope;
+    }
+  }
+}
+
 void MidpointLine(int x1, int y1, int x2, int y2)
 {
   int dx = x2-x1;
   int dy = y2-y1;
   int d = 2*dy-dx;
-  int increE = 2*dx;
+  int increE = 2*dy;
   int incrNE = 2*(dy-dx);
   int x = x1;
   int y = y1;
@@ -150,12 +275,27 @@ void myDisplay()
 			glVertex2i((int)v1[0],(int)v1[1]);
 			glVertex2i((int)v2[0],(int)v2[1]);
 			glVertex2i((int)v3[0],(int)v3[1]);
+			
 			//MidpointLine((int)v1[0],(int)v1[1],(int)v2[0],(int)v2[1]);
 			//MidpointLine((int)v1[0],(int)v1[1],(int)v3[0],(int)v3[1]);
 			//MidpointLine((int)v2[0],(int)v2[1],(int)v3[0],(int)v3[1]);
 			//MidpointLine((int)v2[0],(int)v2[1],(int)v1[0],(int)v1[1]);
 			//MidpointLine((int)v3[0],(int)v3[1],(int)v1[0],(int)v1[1]);
 			//MidpointLine((int)v3[0],(int)v3[1],(int)v2[0],(int)v2[1]);
+			
+			//Bresenham((int)v1[0],(int)v1[1],(int)v2[0],(int)v2[1]);
+			//Bresenham((int)v1[0],(int)v1[1],(int)v3[0],(int)v3[1]);
+			//Bresenham((int)v2[0],(int)v2[1],(int)v3[0],(int)v3[1]);
+			//Bresenham((int)v2[0],(int)v2[1],(int)v1[0],(int)v1[1]);
+			//Bresenham((int)v3[0],(int)v3[1],(int)v1[0],(int)v1[1]);
+			//Bresenham((int)v3[0],(int)v3[1],(int)v2[0],(int)v2[1]);
+			
+			//XiaolinWu((int)v1[0],(int)v1[1],(int)v2[0],(int)v2[1]);
+			//XiaolinWu((int)v1[0],(int)v1[1],(int)v3[0],(int)v3[1]);
+			//XiaolinWu((int)v2[0],(int)v2[1],(int)v3[0],(int)v3[1]);
+			//XiaolinWu((int)v2[0],(int)v2[1],(int)v1[0],(int)v1[1]);
+			//XiaolinWu((int)v3[0],(int)v3[1],(int)v1[0],(int)v1[1]);
+			//XiaolinWu((int)v3[0],(int)v3[1],(int)v2[0],(int)v2[1]);
 		glEnd();
 		
 	}
