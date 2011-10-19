@@ -39,8 +39,8 @@ class Vector3f {
 		return _item[i];
     	}
 
-	Vector3f(float x, float y, float z) 
-	{  _item[0] = x ; _item[1] = y ; _item[2] = z; };
+	Vector3f(float _x, float _y, float _z) 
+	{  _item[0] = _x ; _item[1] = _y ; _item[2] = _z; };
 
 	Vector3f() {};
 
@@ -50,7 +50,7 @@ class Vector3f {
 		_item[0] = obj[0];
 		_item[1] = obj[1];
 		_item[2] = obj[2];
-
+		
 		return *this;
 	};
 
@@ -127,5 +127,11 @@ public:
 	}
 			
 };
+
+
+// Inline functions
+inline float Radians(float deg) {
+    return ((float)M_PI/180.f) * deg;
+}
 
 #endif //_rt_H

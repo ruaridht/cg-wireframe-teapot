@@ -20,6 +20,72 @@ int nCols = 480;
 
 TriangleMesh trig;
 
+void AALine(int x0, int y0, int x1, int y1)
+{
+  int addr = (y0*640+x0)*4;
+  int dx = x1-x0;
+  int dy = y1-y0;
+  int u, du, dv, uincr, vincr, v;
+  /* By switching to (u,v), we combine all eight octants */
+  if (abs(dx) > abs(dy))
+  {
+  	/* Note: If this were actual C, these integers would be lost
+  	 * at the closing brace.  That's not what I mean to do.  Do what
+  	 * I mean. */
+  	du = abs(dx);
+    dv = abs(dy);
+  	u = x1;
+  	v = y1;
+    uincr = 4;
+  	vincr = 640*4;
+  	if (dx < 0) uincr = -uincr;
+  	if (dy < 0) vincr = -vincr;
+  } else {
+  	du = abs(dy);
+  	dv = abs(dx);
+  	u = y1;
+  	v = x1;
+  	uincr = 640*4;
+  	vincr = 4;
+  	if (dy < 0) uincr = -uincr;
+  	if (dx < 0) vincr = -vincr;
+  }
+  int uend = u + 2 * du;
+  int d = (2 * dv) - du;                          /* Initial value as in Bresenham's */
+  int incrS = 2 * dv;	                            /* Δd for straight increments */
+  int incrD = 2 * (dv - du);	                    /* Δd for diagonal increments */
+  int twovdu = 0;	                                /* Numerator of distance; starts at 0 */
+  double invD = 1.0 / (2.0*sqrt(du*du + dv*dv));  /* Precomputed inverse denominator */
+  double invD2du = 2.0 * (du*invD);               /* Precomputed constant */
+  
+  while (u < uend) {
+  	/* Note: this pseudocode doesn't ensure that the address is
+  	 * valid, or that it even represents a pixel on the same side of
+  	 * the screen as the adjacent pixel */
+  	//DrawPixelD(addr, twovdu*invD);
+  	//DrawPixelD(addr + vincr, invD2du - twovdu*invD);
+  	//DrawPixelD(addr - vincr, invD2du + twovdu*invD);
+    
+    glVertex2i(addr, twovdu*invD);
+  	glVertex2i(addr + vincr, invD2du - twovdu*invD);
+  	glVertex2i(addr - vincr, invD2du + twovdu*invD);
+    
+  	if (d < 0) {
+	    /* choose straight (u direction) */
+	    twovdu = d + du;
+	    d = d + incrS;
+  	} else {
+	    /* choose diagonal (u+v direction) */
+	    twovdu = d - du;
+	    d = d + incrD;
+	    v = v+1;
+	    addr = addr + vincr;
+  	}
+  	u = u+1;
+  	addr = addr+uincr;
+  } //while (u < uend);
+}
+
 void XwPlot(int x, int y, float c)
 {
   glColor4f(1,1,1,c);
@@ -103,43 +169,31 @@ void XiaolinWu(int x1, int y1, int x2, int y2)
   }
 }
 
-void Bresenham(int x1, int y1, int x2, int y2)
+void Bresenham(int x0, int y0, int x1, int y1)
 {
-  int slope;
-  int dx, dy, incE, incNE, d, x, y;
+  int dx, dy, sx=-1, sy=-1, err, e2;
   
-  // Reverse lines where x1 > x2
-  if (x1 > x2) {
-    Bresenham(x2,y2,x1,y1);
-    return;
-  }
+  dx = abs(x1-x0);
+  dy = abs(y1-y0);
   
-  dx = x2-x1;
-  dy = y2-y1;
+  if (x0 < x1) { sx = 1; }
+  if (y0 < y1) { sy = 1; }
   
-  // Adjust y-increment for negatively sloped lines
-  if (dy < 0) {
-    slope = -1;
-    dy = -dy;
-  } else {
-    slope = 1;
-  }
+  err = dx-dy;
   
-  // Bresenham constants
-  incE = 2*dy;
-  incNE = (2*dy)-(2*dx);
-  d = (2*dy)-dx;
-  y = y1;
-  
-  // Blit
-  for (x=x1; x<=x2; x++) {
-    glVertex2i(x,y);
+  while (true) {
+    glVertex2i(x0,y0);
     
-    if (d <= 0) {
-      d += incE;
-    } else {
-      d += incNE;
-      y += slope;
+    if (x0==x1 && y0==y1) { break; }
+    e2 = 2*err;
+    
+    if (e2 > -dy) {
+      err = err - dy;
+      x0 = x0 + sx;
+    }
+    if (e2 < dx) {
+      err = err + dx;
+      y0 = y0 + sy;
     }
   }
 }
@@ -153,7 +207,7 @@ void MidpointLine(int x1, int y1, int x2, int y2)
   int incrNE = 2*(dy-dx);
   int x = x1;
   int y = y1;
-  //WritePixel(x,y);
+  
   glVertex2i(x,y);
   
   while (x < x2) {
@@ -165,7 +219,7 @@ void MidpointLine(int x1, int y1, int x2, int y2)
       x++;
       y++;
     }
-    //WritePixel(x,y);
+    
     glVertex2i(x,y);
   }
 }
@@ -240,6 +294,39 @@ void TriangleMesh::loadFile(char * filename)
 };
 
 
+void Rotate(Vector3f &vect, double Xangle, double Yangle, double Zangle) {
+  Xangle = Radians(Xangle);
+  Yangle = Radians(Yangle);
+  Zangle = Radians(Zangle);
+  
+  double cx = cosf(Xangle);
+  double sx = sinf(Xangle);
+  double cy = cosf(Yangle);
+  double sy = sinf(Yangle);
+  double cz = cosf(Zangle);
+  double sz = sinf(Zangle);
+  
+  // x-axis rotation
+  vect[0] = vect[0];
+  vect[1] = vect[1]*cx + vect[1]*sx;
+  vect[2] = -vect[2]*sx + vect[2]*cx;
+  
+  // y-axis rotation
+  vect[0] = vect[0]*cy + -vect[0]*sy;
+  vect[1] = vect[1];
+  vect[2] = vect[2]*sy + vect[2]*cy;
+  
+  // z-axis rotation
+  vect[0] = vect[0]*cz + vect[0]*sz;
+  vect[1] = -vect[1]*sz + vect[1]*cz;
+  vect[2] = vect[2];
+}
+
+void DoBresenham(Vector3f v1, Vector3f v2, Vector3f v3) {
+  Bresenham(v1[0], v1[1], v2[0], v2[1]);
+  Bresenham(v1[0], v1[1], v3[0], v3[1]);
+  Bresenham(v2[0], v2[1], v3[0], v3[1]);
+}
 
 void myDisplay()
 {
@@ -251,7 +338,11 @@ void myDisplay()
 
 	int trignum = trig.trigNum();
 	Vector3f v1, v2, v3;
-
+	
+	double rotateX = 70.0;
+  double rotateY = 30.0;
+  double rotateZ = 0.0;
+  
 	glColor3f(1,1,1);  // change the colour of the pixel
 
 
@@ -264,6 +355,10 @@ void myDisplay()
 	{
 		/*** do the rasterization of the triangles here using glRecti ***/
 		trig.getTriangleVertices(i, v1,v2,v3);
+		
+		Rotate(v1, rotateX, rotateY, rotateZ);
+		Rotate(v2, rotateX, rotateY, rotateZ);
+		Rotate(v3, rotateX, rotateY, rotateZ);
 
 		//
 		// colouring the pixels at the vertex location 
@@ -271,31 +366,44 @@ void myDisplay()
 		// only use glBegin(GL_POINTS) for rendering the scene  
 		//
 		glBegin(GL_POINTS);
-		//glBegin(GL_LINES);	
+		//glBegin(GL_LINE_STRIP);
+		// GL_LINES, GL_LINE_STRIP, GL_LINE_LOOP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN, GL_QUADS, GL_QUAD_STRIP, and GL_POLYGON
 			glVertex2i((int)v1[0],(int)v1[1]);
 			glVertex2i((int)v2[0],(int)v2[1]);
 			glVertex2i((int)v3[0],(int)v3[1]);
 			
-			//MidpointLine((int)v1[0],(int)v1[1],(int)v2[0],(int)v2[1]);
-			//MidpointLine((int)v1[0],(int)v1[1],(int)v3[0],(int)v3[1]);
-			//MidpointLine((int)v2[0],(int)v2[1],(int)v3[0],(int)v3[1]);
-			//MidpointLine((int)v2[0],(int)v2[1],(int)v1[0],(int)v1[1]);
-			//MidpointLine((int)v3[0],(int)v3[1],(int)v1[0],(int)v1[1]);
-			//MidpointLine((int)v3[0],(int)v3[1],(int)v2[0],(int)v2[1]);
+			/*
+			MidpointLine(v1[0], v1[1], v2[0], v2[1]);
+			MidpointLine(v1[0], v1[1], v3[0], v3[1]);
+			MidpointLine(v2[0], v2[1], v3[0], v3[1]);
+			MidpointLine(v2[0], v2[1], v1[0], v1[1]);
+			MidpointLine(v3[0], v3[1], v1[0], v1[1]);
+			MidpointLine(v3[0], v3[1], v2[0], v2[1]);
+			*/
+			/*
+			Bresenham(v1[0], v1[1], v2[0], v2[1]);
+			Bresenham(v1[0], v1[1], v3[0], v3[1]);
+			Bresenham(v2[0], v2[1], v3[0], v3[1]);
+			*/
+			DoBresenham(v1,v2,v3);
 			
-			//Bresenham((int)v1[0],(int)v1[1],(int)v2[0],(int)v2[1]);
-			//Bresenham((int)v1[0],(int)v1[1],(int)v3[0],(int)v3[1]);
-			//Bresenham((int)v2[0],(int)v2[1],(int)v3[0],(int)v3[1]);
-			//Bresenham((int)v2[0],(int)v2[1],(int)v1[0],(int)v1[1]);
-			//Bresenham((int)v3[0],(int)v3[1],(int)v1[0],(int)v1[1]);
-			//Bresenham((int)v3[0],(int)v3[1],(int)v2[0],(int)v2[1]);
+			/*
+			XiaolinWu(v1[0], v1[1], v2[0], v2[1]);
+			XiaolinWu(v1[0], v1[1], v3[0], v3[1]);
+			XiaolinWu(v2[0], v2[1], v3[0], v3[1]);
+			XiaolinWu(v2[0], v2[1], v1[0], v1[1]);
+			XiaolinWu(v3[0], v3[1], v1[0], v1[1]);
+			XiaolinWu(v3[0], v3[1], v2[0], v2[1]);
+			*/
 			
-			//XiaolinWu((int)v1[0],(int)v1[1],(int)v2[0],(int)v2[1]);
-			//XiaolinWu((int)v1[0],(int)v1[1],(int)v3[0],(int)v3[1]);
-			//XiaolinWu((int)v2[0],(int)v2[1],(int)v3[0],(int)v3[1]);
-			//XiaolinWu((int)v2[0],(int)v2[1],(int)v1[0],(int)v1[1]);
-			//XiaolinWu((int)v3[0],(int)v3[1],(int)v1[0],(int)v1[1]);
-			//XiaolinWu((int)v3[0],(int)v3[1],(int)v2[0],(int)v2[1]);
+			/*
+			AALine(v1[0], v1[1], v2[0], v2[1]);
+			AALine(v1[0], v1[1], v3[0], v3[1]);
+			AALine(v2[0], v2[1], v3[0], v3[1]);
+			AALine(v2[0], v2[1], v1[0], v1[1]);
+			AALine(v3[0], v3[1], v1[0], v1[1]);
+			AALine(v3[0], v3[1], v2[0], v2[1]);
+			*/
 		glEnd();
 		
 	}
