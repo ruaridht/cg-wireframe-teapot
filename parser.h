@@ -1,17 +1,10 @@
-#ifndef _rt_H
-#define _rt_H
+#ifndef TEAPOT_PARSER_H
+#define TEAPOT_PARSER_H
 
-#include <cmath>
-#include <vector>
+// parser.h*
+#include "headers.h"
 
-#ifdef __APPLE__
-#  include <OpenGL/gl.h>
-#  include <OpenGL/glu.h>
-#  include <GLUT/glut.h>
-#else
-#  include <GL/gl.h>
-#  include <GL/glu.h>
-#  include <GL/glut.h>
-#endif
 
-using namespace std;
+bool ParseFile(const string &filename);
+
+#endif // TEAPOT_PARSER_H

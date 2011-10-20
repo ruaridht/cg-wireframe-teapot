@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <vector>
+#include "teapot.h"
 
 #ifdef __APPLE__
 #  include <OpenGL/gl.h>
@@ -127,11 +128,5 @@ public:
 	}
 			
 };
-
-
-// Inline functions
-inline float Radians(float deg) {
-    return ((float)M_PI/180.f) * deg;
-}
 
 #endif //_rt_H
