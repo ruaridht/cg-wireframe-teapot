@@ -15,6 +15,8 @@ struct Options {
 
 // Global constants
 #define TEAPOT_VERSION "0.1"
+#define WIDTH "640"
+#define HEIGHT "480"
 #ifdef M_PI
 #undef M_PI
 #endif
@@ -28,5 +30,25 @@ inline float Radians(float deg) {
 inline float Degrees(float rad) {
     return (180.f/(float)M_PI) * rad;
 }
+
+/* These aren't used.
+inline float fmax(float f1,float f2, float f3) {
+	float f = f1;
+
+	if (f < f2) f = f2;
+	if (f < f3) f = f3;
+
+	return f;
+}
+
+inline float fmin(float f1,float f2, float f3) {
+	float f = f1;
+
+	if (f > f2) f = f2;
+	if (f > f3) f = f3;
+
+	return f;
+}
+*/
 
 #endif // TEAPOT_TEAPOT_H

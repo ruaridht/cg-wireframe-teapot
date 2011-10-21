@@ -38,6 +38,13 @@ int main(int argc, char *argv[]) {
         fflush(stdout);
     }
     
+    glutInit(&argc, argv);
+		glutInitWindowSize(WIDTH, HEIGHT);
+		glutCreateWindow("Teatpot Renderer");
+		gluOrtho2D(-WIDTH/2, WIDTH/2, -(float)HEIGHT/2,  (float)HEIGHT/2);
+		glutDisplayFunc(myDisplay);// Callback function
+		glutMainLoop();// Display everything and wait
+		  
     return 0;
 }
 

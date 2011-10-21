@@ -86,25 +86,6 @@ public:
 	};
 };
 
-float fmax(float f1,float f2, float f3) {
-	float f = f1;
-
-	if (f < f2) f = f2;
-	if (f < f3) f = f3;
-
-	return f;
-};
-
-float fmin(float f1,float f2, float f3) {
-	float f = f1;
-
-	if (f > f2) f = f2;
-	if (f > f3) f = f3;
-
-	return f;
-};
-
-
 class TriangleMesh 
 {
 	vector <Vector3f> _v;
