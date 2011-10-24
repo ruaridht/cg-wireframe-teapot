@@ -11,6 +11,6 @@ if [ $OS_TYPE == "Darwin" ]
   	LDFLAGS="-framework GLUT -framework OpenGL"
 fi
 
-$CC -o demo demo1.cc $LDFLAGS
+$CC -o teapot teapot.cpp parser.cpp triangle.cpp wireframe.cpp $LDFLAGS
 
-./demo scenes/MIT_teapot.obj
+#./teapot scenes/MIT_teapot.obj

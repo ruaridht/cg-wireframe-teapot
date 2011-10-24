@@ -6,13 +6,15 @@
 // teapot.cpp*
 #include "headers.h"
 
+Wireframe wire;
+
 // main program
 int main(int argc, char *argv[]) {
     Options options;
-    vector<string> filenames;
+    char * filename;
     
     if (argc==1) {
-      printf("usage: teapot [--verbose] [--help] <filename.obj> ...\n");
+      printf("usage: teapot [--quiet] [--verbose] [--help] <filename.obj> ...\n");
       return 0;
     }
     
@@ -25,7 +27,7 @@ int main(int argc, char *argv[]) {
             printf("usage: teapot [--verbose] [--help] <filename.obj> ...\n");
             return 0;
         }
-        else filenames.push_back(argv[i]);
+        else filename = argv[i];
     }
 
     // Print welcome
@@ -41,10 +43,14 @@ int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
 		glutInitWindowSize(WIDTH, HEIGHT);
 		glutCreateWindow("Teatpot Renderer");
+		
+		wire.loadMesh(filename);
+		wire.draw();
+		/*
 		gluOrtho2D(-WIDTH/2, WIDTH/2, -(float)HEIGHT/2,  (float)HEIGHT/2);
 		glutDisplayFunc(myDisplay);// Callback function
 		glutMainLoop();// Display everything and wait
-		  
+		*/
     return 0;
 }
 

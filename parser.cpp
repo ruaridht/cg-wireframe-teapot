@@ -7,7 +7,7 @@
 #include "headers.h"
 
 // Parsing
-bool ParseFile(const string &filename) {
+bool ParseFile(const string &filename, TriangleMesh &trig) {
   ifstream f(filename);
 
 

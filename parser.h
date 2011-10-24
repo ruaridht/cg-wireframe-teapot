@@ -4,7 +4,6 @@
 // parser.h*
 #include "headers.h"
 
-
-bool ParseFile(const string &filename);
+bool ParseFile(const string &filename, TriangleMesh &trig);
 
 #endif // TEAPOT_PARSER_H
