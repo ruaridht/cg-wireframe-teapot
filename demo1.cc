@@ -278,7 +278,7 @@ void TriangleMesh::loadFile(char * filename)
 
 	_xmin = xmin; _ymin = ymin; _zmin = zmin;
 	_xmax = xmax; _ymax = ymax; _zmax = zmax;
-
+  
 	float range; 
 	if (xmax-xmin > ymax-ymin) range = xmax-xmin;
 	else range = ymax-ymin;
@@ -294,32 +294,49 @@ void TriangleMesh::loadFile(char * filename)
 };
 
 
-void Rotate(Vector3f &vect, double Xangle, double Yangle, double Zangle) {
-  Xangle = Radians(Xangle);
-  Yangle = Radians(Yangle);
-  Zangle = Radians(Zangle);
+void RotateX(Vector3f &v, float angle) {
+  angle = Radians(angle);
+  float s = sinf(angle);
+  float c = cosf(angle);
+  float y, z;
+  y = v[1]*c - v[2]*s;
+  z = v[1]*s + v[2]*c;
+}
+
+void RotateY(Vector3f &v, float angle) {
+  angle = Radians(angle);
+  float s = sinf(angle);
+  float c = cosf(angle);
+  float x, z;
+  x = v[0]*c + v[2]*s;
+  z = -v[0]*s + v[2]*c;
+  v[0] = x;
+  v[2] = z;
+}
+
+void RotateZ(Vector3f &v, float angle) {
+  angle = Radians(angle);
+  float s = sinf(angle);
+  float c = cosf(angle);
+  float x, y;
+  x = v[0]*c - v[1]*s;
+  y = v[0]*s + v[1]*c;
+  v[0] = x;
+  v[1] = y;
+}
+
+void Rotate(Vector3f &v1, Vector3f &v2, Vector3f &v3, float ax, float ay, float az) {
+  RotateX(v1,ax);
+  RotateX(v2,ax);
+  RotateX(v3,ax);
   
-  double cx = cosf(Xangle);
-  double sx = sinf(Xangle);
-  double cy = cosf(Yangle);
-  double sy = sinf(Yangle);
-  double cz = cosf(Zangle);
-  double sz = sinf(Zangle);
+  RotateY(v1,ay);
+  RotateY(v2,ay);
+  RotateY(v3,ay);
   
-  // x-axis rotation
-  vect[0] = vect[0];
-  vect[1] = vect[1]*cx + vect[1]*sx;
-  vect[2] = -vect[2]*sx + vect[2]*cx;
-  
-  // y-axis rotation
-  vect[0] = vect[0]*cy + -vect[0]*sy;
-  vect[1] = vect[1];
-  vect[2] = vect[2]*sy + vect[2]*cy;
-  
-  // z-axis rotation
-  vect[0] = vect[0]*cz + vect[0]*sz;
-  vect[1] = -vect[1]*sz + vect[1]*cz;
-  vect[2] = vect[2];
+  RotateZ(v1,az);
+  RotateZ(v2,az);
+  RotateZ(v3,az);
 }
 
 void DoBresenham(Vector3f v1, Vector3f v2, Vector3f v3) {
@@ -328,86 +345,61 @@ void DoBresenham(Vector3f v1, Vector3f v2, Vector3f v3) {
   Bresenham(v2[0], v2[1], v3[0], v3[1]);
 }
 
+void DoMidpoint(Vector3f v1, Vector3f v2, Vector3f v3) {
+  MidpointLine(v1[0], v1[1], v2[0], v2[1]);
+  MidpointLine(v1[0], v1[1], v3[0], v3[1]);
+  MidpointLine(v2[0], v2[1], v3[0], v3[1]);
+}
+
+void DoXiaolinWu(Vector3f v1, Vector3f v2, Vector3f v3) {
+  XiaolinWu(v1[0], v1[1], v2[0], v2[1]);
+  XiaolinWu(v1[0], v1[1], v3[0], v3[1]);
+  XiaolinWu(v2[0], v2[1], v3[0], v3[1]);
+}
+
+void DoAALine(Vector3f v1, Vector3f v2, Vector3f v3) {
+  AALine(v1[0], v1[1], v2[0], v2[1]);
+  AALine(v1[0], v1[1], v3[0], v3[1]);
+  AALine(v2[0], v2[1], v3[0], v3[1]);
+}
+
 void myDisplay()
 {
 	glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
 
-	/** drawing a line for test **/
-
-	/*** clear the Zbuffer here ****/
-
 	int trignum = trig.trigNum();
 	Vector3f v1, v2, v3;
 	
-	double rotateX = 70.0;
-  double rotateY = 30.0;
-  double rotateZ = 0.0;
+	float rotation = 0.0f;
+	float ax = 0.4f;
+	float ay = 0.6f;
+	float az = 0.5f;
   
-	glColor3f(1,1,1);  // change the colour of the pixel
+	glColor4f(1,1,1,1.0);  // change the colour of the pixel and set alpha
 
-
-	//
 	// for all the triangles, get the location of the vertices,
 	// project them on the xy plane, and color the corresponding pixel by white
-	//
-
-	for (int i = 0 ; i < trignum-1; i++)  
-	{
-		/*** do the rasterization of the triangles here using glRecti ***/
+	//glBegin(GL_POINTS);
+	while (true) {
+	for (int i = 0; i < trignum-1; i++) {
 		trig.getTriangleVertices(i, v1,v2,v3);
-		
-		Rotate(v1, rotateX, rotateY, rotateZ);
-		Rotate(v2, rotateX, rotateY, rotateZ);
-		Rotate(v3, rotateX, rotateY, rotateZ);
-
-		//
-		// colouring the pixels at the vertex location 
-		// (just doing parallel projectiion to the xy plane. 
-		// only use glBegin(GL_POINTS) for rendering the scene  
-		//
+    
+    Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
+    
 		glBegin(GL_POINTS);
-		//glBegin(GL_LINE_STRIP);
-		// GL_LINES, GL_LINE_STRIP, GL_LINE_LOOP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN, GL_QUADS, GL_QUAD_STRIP, and GL_POLYGON
 			glVertex2i((int)v1[0],(int)v1[1]);
 			glVertex2i((int)v2[0],(int)v2[1]);
 			glVertex2i((int)v3[0],(int)v3[1]);
 			
-			/*
-			MidpointLine(v1[0], v1[1], v2[0], v2[1]);
-			MidpointLine(v1[0], v1[1], v3[0], v3[1]);
-			MidpointLine(v2[0], v2[1], v3[0], v3[1]);
-			MidpointLine(v2[0], v2[1], v1[0], v1[1]);
-			MidpointLine(v3[0], v3[1], v1[0], v1[1]);
-			MidpointLine(v3[0], v3[1], v2[0], v2[1]);
-			*/
-			/*
-			Bresenham(v1[0], v1[1], v2[0], v2[1]);
-			Bresenham(v1[0], v1[1], v3[0], v3[1]);
-			Bresenham(v2[0], v2[1], v3[0], v3[1]);
-			*/
+			//DoMidpoint(v1,v2,v3);
 			DoBresenham(v1,v2,v3);
-			
-			/*
-			XiaolinWu(v1[0], v1[1], v2[0], v2[1]);
-			XiaolinWu(v1[0], v1[1], v3[0], v3[1]);
-			XiaolinWu(v2[0], v2[1], v3[0], v3[1]);
-			XiaolinWu(v2[0], v2[1], v1[0], v1[1]);
-			XiaolinWu(v3[0], v3[1], v1[0], v1[1]);
-			XiaolinWu(v3[0], v3[1], v2[0], v2[1]);
-			*/
-			
-			/*
-			AALine(v1[0], v1[1], v2[0], v2[1]);
-			AALine(v1[0], v1[1], v3[0], v3[1]);
-			AALine(v2[0], v2[1], v3[0], v3[1]);
-			AALine(v2[0], v2[1], v1[0], v1[1]);
-			AALine(v3[0], v3[1], v1[0], v1[1]);
-			AALine(v3[0], v3[1], v2[0], v2[1]);
-			*/
+			//DoXiaolinWu(v1,v2,v3);
+			//DoAALine(v1,v2,v3);
 		glEnd();
-		
 	}
-
+	rotation += 1.0;
+	}
+	//glEnd();
 	glFlush();// Output everything
 }
 
