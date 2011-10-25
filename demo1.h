@@ -3,7 +3,6 @@
 
 #include <cmath>
 #include <vector>
-#include "teapot.h"
 
 #ifdef __APPLE__
 #  include <OpenGL/gl.h>
@@ -17,18 +16,23 @@
 
 using namespace std;
 
-//
-// Sample code for physics simulation
-//
+#ifdef M_PI
+#undef M_PI
+#endif
+#define M_PI 3.14159265358979323846f
 
+// Global inline functions
+inline float Radians(float deg) {
+    return ((float)M_PI/180.f) * deg;
+}
 
-// Implements cloth simulation
-
+inline float Degrees(float rad) {
+    return (180.f/(float)M_PI) * rad;
+}
 
 class Vector3f;
 class Triangle;
 class TriangleMesh;
-
 
 class Vector3f {
 
@@ -69,9 +73,6 @@ ostream & operator << (ostream & stream, Vector3f & obj)
 {
 	stream << obj[0] << ' ' << obj[1] << ' ' << obj[2] << ' ';
 };
-
-
-
 
 class Triangle {
 friend class TriangleMesh;
