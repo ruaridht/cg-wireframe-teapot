@@ -9,6 +9,7 @@
 #endif
 
 #include <iostream>
+#include <cstdlib>
 #include <fstream>
 #include "demo1.h"
 #include "math.h"
@@ -17,6 +18,9 @@ using namespace std;
 
 int nRows = 640;
 int nCols = 480; 
+float rotation = 100.0f;
+float rgb[] = { 1.0, 1.0, 1.0 };
+bool rgbup = false;
 
 TriangleMesh trig;
 
@@ -370,17 +374,21 @@ void myDisplay()
 	int trignum = trig.trigNum();
 	Vector3f v1, v2, v3;
 	
-	float rotation = 0.0f;
-	float ax = 0.4f;
+	float ax = 0.6f;
 	float ay = 0.6f;
-	float az = 0.5f;
+	float az = 0.6f;
   
-	glColor4f(1,1,1,1.0);  // change the colour of the pixel and set alpha
-
+  if (rgb[0] >= 1.0) {
+    rgbup = false;
+  } else if (rgb[0] <= 0.1) {
+    rgbup = true;
+  }
+  
+	//glColor4f(rgb[0],rgb[1],rgb[2],1.0);  // change the colour of the pixel and set alpha
+	gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+  
 	// for all the triangles, get the location of the vertices,
 	// project them on the xy plane, and color the corresponding pixel by white
-	//glBegin(GL_POINTS);
-	while (true) {
 	for (int i = 0; i < trignum-1; i++) {
 		trig.getTriangleVertices(i, v1,v2,v3);
     
@@ -397,9 +405,18 @@ void myDisplay()
 			//DoAALine(v1,v2,v3);
 		glEnd();
 	}
-	rotation += 1.0;
-	}
-	//glEnd();
+	rotation += 0.4;
+	
+	if (rgbup) {
+  	rgb[0] += 0.004;
+  	rgb[1] += 0.016;
+  	rgb[2] += 0.010;
+  } else {
+    rgb[0] -= 0.010;
+  	rgb[1] -= 0.016;
+  	rgb[2] -= 0.004;
+  }
+	
 	glFlush();// Output everything
 }
 
@@ -420,5 +437,6 @@ int main(int argc, char **argv)
 	glutCreateWindow("SimpleExample");
 	gluOrtho2D(-nRows/2, nRows/2, -(float)nCols/2,  (float)nCols/2);
 	glutDisplayFunc(myDisplay);// Callback function
+	glutIdleFunc(myDisplay); // Idling
 	glutMainLoop();// Display everything and wait
 }
