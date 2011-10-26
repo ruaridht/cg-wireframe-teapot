@@ -380,13 +380,12 @@ void myDisplay()
   
   if (rgb[0] >= 1.0) {
     rgbup = false;
-  } else if (rgb[0] <= 0.1) {
+  } else if (rgb[0] <= 0.0) {
     rgbup = true;
   }
   
-	//glColor4f(rgb[0],rgb[1],rgb[2],1.0);  // change the colour of the pixel and set alpha
-	gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-  
+	glColor3f(rgb[0],rgb[1],rgb[2]);  // change the colour of the pixel and set alpha
+	 
 	// for all the triangles, get the location of the vertices,
 	// project them on the xy plane, and color the corresponding pixel by white
 	for (int i = 0; i < trignum-1; i++) {
