@@ -284,7 +284,8 @@ void XiaolinWu(int x1, int y1, int x2, int y2)
   }
 }
 
-void GuptaSproul(int x1, int x2, int y1, int y2) {
+void GuptaSproul(int x0, int y0, int x1, int y1) {
+  /*
   int dx = x2-x1;
   int dy = y2-y1;
   int d = 2*dy-dx;
@@ -311,7 +312,7 @@ void GuptaSproul(int x1, int x2, int y1, int y2) {
       y++;
     }
     
-    denominator = 2*(sqrt(dx*dx + dy*dy));
+    denominator = 2.0*(sqrt(dx*dx + dy*dy));
     capD = (float)numerator / (float)denominator;
     
     dUpper = (2.0*dx - 2.0*numerator)/denominator;
@@ -325,6 +326,51 @@ void GuptaSproul(int x1, int x2, int y1, int y2) {
     
     glColor4f(1.0,1.0,1.0,dLower);
     glVertex2i(x,y-1);
+  }
+  */
+  int dx, dy, sx=-1, sy=-1, err, e2;
+  float numerator, denominator, capD, dUpper, dLower;
+  
+  dx = abs(x1-x0);
+  dy = abs(y1-y0);
+  
+  if (x0 < x1) { sx = 1; }
+  if (y0 < y1) { sy = 1; }
+  
+  err = dx-dy;
+  
+  while (true) {
+    glColor4f(1.0,1.0,1.0,1.0);
+    glVertex2i(x0,y0);
+    
+    if (x0==x1 && y0==y1) { break; }
+    e2 = 2*err;
+    
+    if (e2 > -dy) {
+      err = err - dy;
+      x0 = x0 + sx;
+    }
+    if (e2 < dx) {
+      err = err + dx;
+      y0 = y0 + sy;
+    }
+    
+    numerator = err;
+    denominator = 2.0*(sqrt(dx*dx + dy*dy));
+    dUpper = (2.0*dx - 2.0*numerator)/denominator;
+    dLower = (2.0*dx + 2.0*numerator)/denominator;
+    
+    glColor4f(1.0,1.0,1.0,dUpper);
+    glVertex2i(x0,y0+1);
+    
+    glColor4f(1.0,1.0,1.0,dLower);
+    glVertex2i(x0,y0-1);
+    
+    glColor4f(1.0,1.0,1.0,dUpper);
+    glVertex2i(x0+1,y0);
+    
+    glColor4f(1.0,1.0,1.0,dLower);
+    glVertex2i(x0-1,y0);
   }
 }
 
@@ -581,8 +627,8 @@ void myDisplay()
 	for (int i = 0; i < trignum-1; i++) {
 		trig.getTriangleVertices(i, v1,v2,v3);
     
-    //Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
-    //Scale(v1, v2, v3, scaleCoeff);
+    Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
+    Scale(v1, v2, v3, scaleCoeff);
     //Translate();
     
 		glBegin(GL_POINTS);
@@ -635,7 +681,9 @@ int main(int argc, char **argv)
 	
 	//glEnable(GL_ALPHA_TEST);
 	glEnable(GL_BLEND);
+	glEnable(GL_POINT_SMOOTH);
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 	//glAlphaFunc(GL_GREATER,0.1f);
 	
 	glutDisplayFunc(myDisplay);// Callback function
