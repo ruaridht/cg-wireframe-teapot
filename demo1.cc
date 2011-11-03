@@ -27,12 +27,18 @@ TriangleMesh trig;
 #define swap(a,b)           {a^=b; b^=a; a^=b;}
 #define absolute(i,j,k)     ( (i-j)*(k = ( (i-j)<0 ? -1 : 1)))
 
-/* non-zero flag indicates the pixels needing swap back. */
+// Pixel drawing methods
+// non-zero flag indicates the pixels needing swap back
 void plot(int x, int y, int flag) {
 	if (flag)
 		glVertex2i(y, x);
 	else
 		glVertex2i(x, y);
+}
+
+void putpixel(int x, int y, float alpha) {
+  glColor4f(1.0,1.0,1.0,alpha);
+  glVertex2i(x,y);
 }
 
 void symwuline(int a1, int b1, int a2, int b2) {
@@ -48,8 +54,7 @@ void symwuline(int a1, int b1, int a2, int b2) {
 	else
 		step = -1;
 
-	if (dy > dx) {		/* chooses axis of greatest movement (make
-				 		 * dx) */
+	if (dy > dx) {		/* chooses axis of greatest movement (make * dx) */
 		swap(a1, b1);
 		swap(a2, b2);
 		swap(dx, dy);
@@ -90,10 +95,10 @@ void symwuline(int a1, int b1, int a2, int b2) {
 			++x;
 			--x1;
 			if (D < 0) {
-                  			/* pattern 1 forwards */
+        /* pattern 1 forwards */
 				plot(x, y, reverse);
 				plot(++x, y, reverse);
-                                /* pattern 1 backwards */
+        /* pattern 1 backwards */
 				plot(x1, y1, reverse);
 				plot(--x1, y1, reverse);
 				D += incr1;
@@ -211,40 +216,16 @@ void symwuline(int a1, int b1, int a2, int b2) {
 	}
 }
 
-void XwPlot(int x, int y, float c)
-{
-  glColor4f(1.0,1.0,1.0,c);
-  glVertex2i(x,y);
-  //glColor4f(1,1,1,1);
-}
+void XiaolinWu(int x1, int y1, int x2, int y2) {
 
-int XwRound(float n)
-{
-  return (int)floor(n + 0.5);
-}
-
-float XwFpart(float n)
-{
-  return (float)(n - floor(n));
-}
-
-float XwRfpart(float n)
-{
-  return (float)(1.0 - XwFpart(n));
-}
-
-float XwIpart(float n)
-{
-  return (float)floor(n);
-}
-
-void XiaolinWu(int x1, int y1, int x2, int y2)
-{
-  float dx = (float)x2-(float)x1;
-  float dy = (float)y2-(float)y1;
+  
+  
+  int dx = x2-x1;
+  int dy = y2-y1;
+  int xend, xpx11, ypx11;
   float gradient;
-  float xend, yend, xgap, xpx11, ypx11, xpx12, ypx12, intery;
-  /*
+  float yend, xgap, xpx12, ypx12, intery;
+  
   if (fabs(dx) < fabs(dy)) {
     swap(x1,y1);
     swap(x2,y2);
@@ -254,80 +235,114 @@ void XiaolinWu(int x1, int y1, int x2, int y2)
     swap(x1,x2);
     swap(y1,y2);
   }
-  */
-  gradient = dy/dx;
+  
+  gradient = (1.0*dy)/(1.0*dx); // 1.0* to create float
   
   // handle first endpoint
-  xend = (float)XwRound(x2);
-  yend = (float)(y1 + gradient*(xend - x1));
-  xgap = XwRfpart((float)(x1 + 0.5));
+  xend = Round(x2);
+  yend = (y1 + gradient*(xend - x1));
+  xgap = RFracPart( (float)x1 + 0.5 );
   xpx11 = xend;
-  ypx11 = XwIpart((float)yend);
-  XwPlot((int)xpx11,(int)ypx11, XwRfpart(yend)*xgap);
-  XwPlot((int)xpx11,(int)ypx11+1,XwFpart(yend)*xgap);
+  ypx11 = IntPart(yend);
+  putpixel(xpx11, ypx11, RFracPart(yend)*xgap);
+  putpixel(xpx11, ypx11+1, FracPart(yend)*xgap);
   intery = yend + gradient;
   
   // handle second endpoint
-  xend = XwRound(x2);
+  xend = Round(x2);
   yend = y2 + gradient * (xend-x2);
-  xgap = XwFpart(x2+0.5);
+  xgap = FracPart((float)x2 + 0.5);
   xpx12 = xend;
-  ypx12 = XwIpart(yend);
-  XwPlot(xpx12, ypx12, XwRfpart(yend)*xgap);
-  XwPlot(xpx12, ypx12+1, XwFpart(yend)*xgap);
+  ypx12 = IntPart(yend);
+  putpixel(xpx12, ypx12, RFracPart(yend)*xgap);
+  putpixel(xpx12, ypx12+1, FracPart(yend)*xgap);
   
   // main loop
-  for (float i=(xpx11+1); i<=(xpx12-1); i++) {
-    XwPlot((int)i,(int)XwIpart(intery),(float)XwRfpart(intery));
-    XwPlot((int)i,(int)XwIpart(intery)+1,(float)XwFpart(intery));
+  for (int i=(xpx11+1); i<=(xpx12-1); i++) {
+    putpixel(i, IntPart(intery), RFracPart(intery));
+    putpixel(i, IntPart(intery)+1, FracPart(intery));
     intery += gradient;
   }
 }
 
-void GuptaSproul(int x0, int y0, int x1, int y1) {
-  /*
-  int dx = x2-x1;
-  int dy = y2-y1;
-  int d = 2*dy-dx;
-  int increE = 2*dy;
-  int incrNE = 2*(dy-dx);
-  int x = x1;
-  int y = y1;
+void AA_Line(int x1, int y1, int x2, int y2, int linewidth) {
+  int dx = abs(x1 - x2); 
+  int dy = abs(y1 - y2);
+  int error, sign, tmp;
+  float ipix;
+  int step = linewidth;
   
-  float numerator, denominator, capD, dUpper, dLower;
+  // Check whether the slope is more vertical or horizontal.
+  // Vertical means we anti-alias the sides, horizontal is top n' bottom
+  if (dx >= dy) {
+  	if (x1 > x2) {
+	    tmp = x1;
+	    x1 = x2;
+	    x2 = tmp;
+	    tmp = y1;
+	    y1 = y2;
+	    y2 = tmp;
+  	}
+  	error = dx / 2;
+  	if (y2 > y1)
+	    sign = step;
+    else
+	    sign = -step;
+  	putpixel(x1,y1,1.0);
+  	
+  	while (x1 < x2) {
+      if ((error -= dy) < 0) {
+    		y1 += sign;
+    		error += dx;
+      }
+      x1 += step;
+      ipix = (float)error / dx;
   
-  glVertex2i(x,y);
+      if (sign == step)
+  	    ipix = 1 - ipix;
+  	    
+      putpixel(x1, y1, 1.0);
+      putpixel(x1, y1 - step, (1- ipix));
+      putpixel(x1, y1 + step, ipix);
+  	}
+    putpixel(x2, y2, 1.0);
+  } else {
+  	if (y1 > y2) {
+	    tmp = x1;
+	    x1 = x2;
+	    x2 = tmp;
+	    tmp = y1;
+	    y1 = y2;
+	    y2 = tmp;
+  	}
+    error = dy / 2;
   
-  while (x < x2) {
-    if (d <= 0) {
-      numerator = d + dx;
-      d += increE;
+  	if (x2 > x1)
+      sign = step;
+  	else
+      sign = -step;
       
-      x++;
-    } else {
-      numerator = d - dx;
-      d += incrNE;
-      
-      x++;
-      y++;
-    }
-    
-    denominator = 2.0*(sqrt(dx*dx + dy*dy));
-    capD = (float)numerator / (float)denominator;
-    
-    dUpper = (2.0*dx - 2.0*numerator)/denominator;
-    dLower = (2.0*dx + 2.0*numerator)/denominator;
-    
-    glColor4f(1.0,1.0,1.0,capD);
-    glVertex2i(x,y);
-    
-    glColor4f(1.0,1.0,1.0,dUpper);
-    glVertex2i(x,y+1);
-    
-    glColor4f(1.0,1.0,1.0,dLower);
-    glVertex2i(x,y-1);
+    putpixel(x1, y1, 1.0);
+  	while (y1 < y2) {
+      if ((error -= dx) < 0) {
+  		  x1 += sign;
+  		  error += dy;
+      }
+      y1 += step;
+      ipix = (float)error / dy;
+  
+      if (sign == step)
+  		  ipix = 1 - ipix;
+  
+      putpixel(x1, y1, 1.0);
+      putpixel(x1 - step, y1, (1 - ipix));
+      putpixel(x1 + step, y1, ipix);
+  	}
+  	putpixel(x2, y2, 1.0);
   }
-  */
+}
+
+void GuptaSproul(int x0, int y0, int x1, int y1) {
   int dx, dy, sx=-1, sy=-1, err, e2;
   float numerator, denominator, capD, dUpper, dLower;
   
@@ -339,7 +354,7 @@ void GuptaSproul(int x0, int y0, int x1, int y1) {
   
   err = dx-dy;
   
-  while (true) {
+  do {
     glColor4f(1.0,1.0,1.0,1.0);
     glVertex2i(x0,y0);
     
@@ -365,12 +380,35 @@ void GuptaSproul(int x0, int y0, int x1, int y1) {
     
     glColor4f(1.0,1.0,1.0,dLower);
     glVertex2i(x0,y0-1);
+  } while (true);
+}
+
+void AABresenham(int x0, int y0, int x1, int y1)
+{
+  int dx, dy, sx=-1, sy=-1, err, e2;
+  
+  dx = abs(x1-x0);
+  dy = abs(y1-y0);
+  
+  if (x0 < x1) { sx = 1; }
+  if (y0 < y1) { sy = 1; }
+  
+  err = dx-dy;
+  
+  while (true) {
+    glVertex2i(x0,y0);
     
-    glColor4f(1.0,1.0,1.0,dUpper);
-    glVertex2i(x0+1,y0);
+    if (x0==x1 && y0==y1) { break; }
+    e2 = 2*err;
     
-    glColor4f(1.0,1.0,1.0,dLower);
-    glVertex2i(x0-1,y0);
+    if (e2 > -dy) {
+      err = err - dy;
+      x0 = x0 + sx;
+    }
+    if (e2 < dx) {
+      err = err + dx;
+      y0 = y0 + sy;
+    }
   }
 }
 
@@ -403,10 +441,9 @@ void Bresenham(int x0, int y0, int x1, int y1)
   }
 }
 
-void MidpointLine(int x1, int y1, int x2, int y2)
-{
+void MidpointLine(int x1, int y1, int x2, int y2) {
   int dx = x2-x1;
-  int dy = y2-y1;
+  int dy = y2-y1;  
   int d = 2*dy-dx;
   int increE = 2*dy;
   int incrNE = 2*(dy-dx);
@@ -574,6 +611,12 @@ void DoBresenham(Vector3f v1, Vector3f v2, Vector3f v3) {
   Bresenham(v2[0], v2[1], v3[0], v3[1]);
 }
 
+void DoAAB(Vector3f v1, Vector3f v2, Vector3f v3) {
+  AABresenham(v1[0], v1[1], v2[0], v2[1]);
+  AABresenham(v1[0], v1[1], v3[0], v3[1]);
+  AABresenham(v2[0], v2[1], v3[0], v3[1]);
+}
+
 void DoMidpoint(Vector3f v1, Vector3f v2, Vector3f v3) {
   MidpointLine(v1[0], v1[1], v2[0], v2[1]);
   MidpointLine(v1[0], v1[1], v3[0], v3[1]);
@@ -598,20 +641,25 @@ void DoGS(Vector3f v1, Vector3f v2, Vector3f v3) {
   GuptaSproul(v2[0], v2[1], v3[0], v3[1]);
 }
 
+void DoAAL(Vector3f v1, Vector3f v2, Vector3f v3, int width) {
+  AA_Line(v1[0], v1[1], v2[0], v2[1], width);
+  AA_Line(v1[0], v1[1], v3[0], v3[1], width);
+  AA_Line(v2[0], v2[1], v3[0], v3[1], width);
+}
+
 void myDisplay()
 {
-  glClearColor(0.0,0.0,0.0,0.0); // similarly
 	glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
-
+  
 	int trignum = trig.trigNum();
 	Vector3f v1, v2, v3;
 	
-	float ax = 0.6f;
-	float ay = 0.6f;
-	float az = 0.6f;
-	double alpha = 1.0;
-	
-	float scaleCoeff = 3.0f;
+	float  ax         = 0.6f;
+	float  ay         = 0.6f;
+	float  az         = 0.6f;
+	double alpha      = 1.0;
+	float  scaleCoeff = 1.0f;
+	int    lineWidth  = 1;
   
   if (rgb[0] >= 1.0) {
     rgbup = false;
@@ -627,7 +675,7 @@ void myDisplay()
 	for (int i = 0; i < trignum-1; i++) {
 		trig.getTriangleVertices(i, v1,v2,v3);
     
-    Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
+    //Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
     Scale(v1, v2, v3, scaleCoeff);
     //Translate();
     
@@ -641,9 +689,11 @@ void myDisplay()
 			
 			//DoMidpoint(v1,v2,v3);
 			//DoBresenham(v1,v2,v3);
-			//DoXiaolinWu(v1,v2,v3);
+		  DoXiaolinWu(v1,v2,v3);
 			//DoSymwuline(v1,v2,v3);
-			DoGS(v1,v2,v3);
+			//DoGS(v1,v2,v3);
+			//DoAAB(v1,v2,v3);
+			//DoAAL(v1,v2,v3,lineWidth);
 		glEnd();
 	}
 	rotation += 0.2;
@@ -685,6 +735,7 @@ int main(int argc, char **argv)
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 	//glAlphaFunc(GL_GREATER,0.1f);
+	glClearColor(0.0,0.0,0.0,0.0); // similarly
 	
 	glutDisplayFunc(myDisplay);// Callback function
 	glutIdleFunc(myDisplay); // Idling
