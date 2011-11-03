@@ -41,6 +41,42 @@ void putpixel(int x, int y, float alpha) {
   glVertex2i(x,y);
 }
 
+void EFLA(int x, int y, int x2, int y2) {
+	bool yLonger=false;
+	int incrementVal, endVal;
+
+	int shortLen=y2-y;
+	int longLen=x2-x;
+	if (abs(shortLen)>abs(longLen)) {
+		int swap=shortLen;
+		shortLen=longLen;
+		longLen=swap;
+		yLonger=true;
+	}
+	
+	endVal=longLen;
+	if (longLen<0) {
+		incrementVal=-1;
+		longLen=-longLen;
+	} else incrementVal=1;
+
+	double decInc;
+	if (longLen==0) decInc=(double)shortLen;
+	else decInc=((double)shortLen/(double)longLen);
+	double j=0.0;
+	if (yLonger) {
+		for (int i=0;i!=endVal;i+=incrementVal) {
+			glVertex2i(x+(int)j,y+i);
+			j+=decInc;
+		}
+	} else {
+		for (int i=0;i!=endVal;i+=incrementVal) {
+			glVertex2i(x+i,y+(int)j);
+			j+=decInc;
+		}
+	}
+}
+
 void symwuline(int a1, int b1, int a2, int b2) {
 	int           dx, dy, incr1, incr2, D, x, y, xend, c, pixels_left;
 	int           x1, y1;
@@ -218,50 +254,65 @@ void symwuline(int a1, int b1, int a2, int b2) {
 
 void XiaolinWu(int x1, int y1, int x2, int y2) {
 
+  float grad, dx, dy, length, xm, ym, xgap, xend, yend, yf, brightness1, brightness2;
+  int x, y, ix1, ix2, iy1, iy2;
   
-  
-  int dx = x2-x1;
-  int dy = y2-y1;
-  int xend, xpx11, ypx11;
-  float gradient;
-  float yend, xgap, xpx12, ypx12, intery;
+  dx = (x2-x1);
+  dy = (y2-y1);
   
   if (fabs(dx) < fabs(dy)) {
     swap(x1,y1);
     swap(x2,y2);
-    swap(dx,dy);
   }
-  if (x2 < x1) {
+  
+  // Note: There's a better way than casting x1,x2,y1,y2 all the time, oh well.
+  if (x1 > x2) {
     swap(x1,x2);
     swap(y1,y2);
+    dx = (x2-x1);
+    dy = (y2-y1);
   }
   
-  gradient = (1.0*dy)/(1.0*dx); // 1.0* to create float
+  grad = (dy/dx);
   
-  // handle first endpoint
-  xend = Round(x2);
-  yend = (y1 + gradient*(xend - x1));
-  xgap = RFracPart( (float)x1 + 0.5 );
-  xpx11 = xend;
-  ypx11 = IntPart(yend);
-  putpixel(xpx11, ypx11, RFracPart(yend)*xgap);
-  putpixel(xpx11, ypx11+1, FracPart(yend)*xgap);
-  intery = yend + gradient;
+  // ep1
+  xend = IntPart((float)x1 + 0.5);
+  yend = y1 + grad*(xend - x1);
+  xgap = RFracPart((float)x1 + 0.5);
+  ix1 = (int)xend;
+  iy1 = (int)yend;
   
-  // handle second endpoint
-  xend = Round(x2);
-  yend = y2 + gradient * (xend-x2);
-  xgap = FracPart((float)x2 + 0.5);
-  xpx12 = xend;
-  ypx12 = IntPart(yend);
-  putpixel(xpx12, ypx12, RFracPart(yend)*xgap);
-  putpixel(xpx12, ypx12+1, FracPart(yend)*xgap);
+  brightness1 = RFracPart(yend) * xgap;
+  brightness2 = FracPart(yend) * xgap;
   
-  // main loop
-  for (int i=(xpx11+1); i<=(xpx12-1); i++) {
-    putpixel(i, IntPart(intery), RFracPart(intery));
-    putpixel(i, IntPart(intery)+1, FracPart(intery));
-    intery += gradient;
+  putpixel(ix1, iy1, brightness1);
+  putpixel(ix1, iy1+1, brightness2);
+  
+  yf = yend + grad;
+  
+  // ep2
+  xend = IntPart((float)x1 + 0.5);
+  yend = y2 + grad*(xend - (float)x2);
+  
+  xgap = RFracPart((float)x2 - 0.5);
+  
+  ix2 = (int)xend;
+  iy2 = (int)yend;
+  
+  brightness1 = RFracPart(yend) * xgap;
+  brightness2 = FracPart(yend) * xgap;
+  
+  putpixel(ix2, iy2, brightness1);
+  putpixel(ix2, iy2+1, brightness2);
+  
+  for (int x = (ix1+1); x <= (ix1-1); x++) {
+    brightness1 = RFracPart(yf);
+    brightness2 = FracPart(yf);
+    
+    putpixel(x, (int)yf, brightness1);
+    putpixel(x, (int)yf+1, brightness2);
+    
+    yf = yf + grad;
   }
 }
 
@@ -647,6 +698,12 @@ void DoAAL(Vector3f v1, Vector3f v2, Vector3f v3, int width) {
   AA_Line(v2[0], v2[1], v3[0], v3[1], width);
 }
 
+void DoEFLA(Vector3f v1, Vector3f v2, Vector3f v3) {
+  EFLA(v1[0], v1[1], v2[0], v2[1]);
+  EFLA(v1[0], v1[1], v3[0], v3[1]);
+  EFLA(v2[0], v2[1], v3[0], v3[1]);
+}
+
 void myDisplay()
 {
 	glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
@@ -658,7 +715,7 @@ void myDisplay()
 	float  ay         = 0.6f;
 	float  az         = 0.6f;
 	double alpha      = 1.0;
-	float  scaleCoeff = 1.0f;
+	float  scaleCoeff = 40.0f;
 	int    lineWidth  = 1;
   
   if (rgb[0] >= 1.0) {
@@ -694,6 +751,7 @@ void myDisplay()
 			//DoGS(v1,v2,v3);
 			//DoAAB(v1,v2,v3);
 			//DoAAL(v1,v2,v3,lineWidth);
+			//DoEFLA(v1,v2,v3);
 		glEnd();
 	}
 	rotation += 0.2;
