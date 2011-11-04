@@ -16,8 +16,8 @@
 
 using namespace std;
 
-int nRows = 640;
-int nCols = 480; 
+int nRows = 1280; //640;
+int nCols = 960; //480; 
 float rotation = 100.0f;
 float rgb[] = { 1.0, 1.0, 1.0 };
 bool rgbup = false;
@@ -252,68 +252,111 @@ void symwuline(int a1, int b1, int a2, int b2) {
 	}
 }
 
-void XiaolinWu(int x1, int y1, int x2, int y2) {
-
-  float grad, dx, dy, length, xm, ym, xgap, xend, yend, yf, brightness1, brightness2;
-  int x, y, ix1, ix2, iy1, iy2;
-  
-  dx = (x2-x1);
-  dy = (y2-y1);
-  
-  if (fabs(dx) < fabs(dy)) {
-    swap(x1,y1);
-    swap(x2,y2);
-  }
-  
-  // Note: There's a better way than casting x1,x2,y1,y2 all the time, oh well.
-  if (x1 > x2) {
-    swap(x1,x2);
-    swap(y1,y2);
-    dx = (x2-x1);
-    dy = (y2-y1);
-  }
-  
-  grad = (dy/dx);
-  
-  // ep1
-  xend = IntPart((float)x1 + 0.5);
-  yend = y1 + grad*(xend - x1);
-  xgap = RFracPart((float)x1 + 0.5);
-  ix1 = (int)xend;
-  iy1 = (int)yend;
-  
-  brightness1 = RFracPart(yend) * xgap;
-  brightness2 = FracPart(yend) * xgap;
-  
-  putpixel(ix1, iy1, brightness1);
-  putpixel(ix1, iy1+1, brightness2);
-  
-  yf = yend + grad;
-  
-  // ep2
-  xend = IntPart((float)x1 + 0.5);
-  yend = y2 + grad*(xend - (float)x2);
-  
-  xgap = RFracPart((float)x2 - 0.5);
-  
-  ix2 = (int)xend;
-  iy2 = (int)yend;
-  
-  brightness1 = RFracPart(yend) * xgap;
-  brightness2 = FracPart(yend) * xgap;
-  
-  putpixel(ix2, iy2, brightness1);
-  putpixel(ix2, iy2+1, brightness2);
-  
-  for (int x = (ix1+1); x <= (ix1-1); x++) {
-    brightness1 = RFracPart(yf);
-    brightness2 = FracPart(yf);
+void XiaolinWu(int X0, int Y0, int X1, int Y1) {
+    unsigned short IntensityShift, ErrorAdj, ErrorAcc;
+    unsigned short ErrorAccTemp, Weighting, WeightingComplementMask;
+    short DeltaX, DeltaY, Temp, XDir;
     
-    putpixel(x, (int)yf, brightness1);
-    putpixel(x, (int)yf+1, brightness2);
+    /* Make sure the line runs top to bottom */
+    if (Y0 > Y1) {
+      Temp = Y0; Y0 = Y1; Y1 = Temp;
+      Temp = X0; X0 = X1; X1 = Temp;
+    }
+    /* Draw the initial pixel, which is always exactly intersected by
+      the line and so needs no weighting */
+    putpixel(X0, Y0, 1.0);
     
-    yf = yf + grad;
-  }
+    if ((DeltaX = X1 - X0) >= 0) {
+      XDir = 1;
+    } else {
+      XDir = -1;
+      DeltaX = -DeltaX; /* make DeltaX positive */
+    }
+    /* Special-case horizontal, vertical, and diagonal lines, which
+      require no weighting because they go right through the center of
+      every pixel */
+    if ((DeltaY = Y1 - Y0) == 0) {
+      /* Horizontal line */
+      while (DeltaX-- != 0) {
+         X0 += XDir;
+         putpixel(X0, Y0, 1.0);
+      }
+      return;
+    }
+    if (DeltaX == 0) {
+      /* Vertical line */
+      do {
+         Y0++;
+         putpixel(X0, Y0, 1.0);
+      } while (--DeltaY != 0);
+      return;
+    }
+    if (DeltaX == DeltaY) {
+      /* Diagonal line */
+      do {
+         X0 += XDir;
+         Y0++;
+         putpixel(X0, Y0, 1.0);
+      } while (--DeltaY != 0);
+      return;
+    }
+    /* Line is not horizontal, diagonal, or vertical */
+    ErrorAcc = 0;  /* initialize the line error accumulator to 0 */
+    /* # of bits by which to shift ErrorAcc to get intensity level */
+    //IntensityShift = 16 - IntensityBits;
+    /* Mask used to flip all bits in an intensity weighting, producing the
+      result (1 - intensity weighting) */
+    //WeightingComplementMask = NumLevels - 1;
+    /* Is this an X-major or Y-major line? */
+    if (DeltaY > DeltaX) {
+      /* Y-major line; calculate 16-bit fixed-point fractional part of a
+         pixel that X advances each time Y advances 1 pixel, truncating the
+         result so that we won't overrun the endpoint along the X axis */
+      ErrorAdj = ((unsigned long) DeltaX) / (unsigned long) DeltaY;
+      /* Draw all pixels other than the first and last */
+      while (--DeltaY) {
+         ErrorAccTemp = ErrorAcc;   /* remember currrent accumulated error */
+         ErrorAcc += ErrorAdj;      /* calculate error for next pixel */
+         if (ErrorAcc <= ErrorAccTemp) {
+            /* The error accumulator turned over, so advance the X coord */
+            X0 += XDir;
+         }
+         Y0++; /* Y-major, so always advance Y */
+         /* The IntensityBits most significant bits of ErrorAcc give us the
+            intensity weighting for this pixel, and the complement of the
+            weighting for the paired pixel */
+         Weighting = ErrorAcc; // >> IntensityShift;
+         putpixel(X0, Y0, Weighting);
+         putpixel(X0 + XDir, Y0, Weighting);
+      }
+      /* Draw the final pixel, which is always exactly intersected by the line
+         and so needs no weighting */
+      putpixel(X1, Y1, 1.0);
+      return;
+    }
+    /* It's an X-major line; calculate 16-bit fixed-point fractional part of a
+      pixel that Y advances each time X advances 1 pixel, truncating the
+      result to avoid overrunning the endpoint along the X axis */
+    ErrorAdj = ((unsigned long) DeltaY) / (unsigned long) DeltaX;
+    /* Draw all pixels other than the first and last */
+    while (--DeltaX) {
+      ErrorAccTemp = ErrorAcc;   /* remember currrent accumulated error */
+      ErrorAcc += ErrorAdj;      /* calculate error for next pixel */
+      if (ErrorAcc <= ErrorAccTemp) {
+         /* The error accumulator turned over, so advance the Y coord */
+         Y0++;
+      }
+      X0 += XDir; /* X-major, so always advance X */
+      /* The IntensityBits most significant bits of ErrorAcc give us the
+         intensity weighting for this pixel, and the complement of the
+         weighting for the paired pixel */
+      Weighting = ErrorAcc; // >> IntensityShift;
+      putpixel(X0, Y0, Weighting);
+      putpixel(X0, Y0 + 1, Weighting);
+    }
+    /* Draw the final pixel, which is always exactly intersected by the line
+      and so needs no weighting */
+    putpixel(X1, Y1, 1.0);
 }
 
 void AA_Line(int x1, int y1, int x2, int y2, int linewidth) {
@@ -715,8 +758,9 @@ void myDisplay()
 	float  ay         = 0.6f;
 	float  az         = 0.6f;
 	double alpha      = 1.0;
-	float  scaleCoeff = 40.0f;
+	float  scaleCoeff = 3.0f;
 	int    lineWidth  = 1;
+	int    rotateSpeed= 4;
   
   if (rgb[0] >= 1.0) {
     rgbup = false;
@@ -732,7 +776,7 @@ void myDisplay()
 	for (int i = 0; i < trignum-1; i++) {
 		trig.getTriangleVertices(i, v1,v2,v3);
     
-    //Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
+    Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
     Scale(v1, v2, v3, scaleCoeff);
     //Translate();
     
@@ -746,15 +790,15 @@ void myDisplay()
 			
 			//DoMidpoint(v1,v2,v3);
 			//DoBresenham(v1,v2,v3);
-		  DoXiaolinWu(v1,v2,v3);
+		  //DoXiaolinWu(v1,v2,v3);
 			//DoSymwuline(v1,v2,v3);
 			//DoGS(v1,v2,v3);
 			//DoAAB(v1,v2,v3);
-			//DoAAL(v1,v2,v3,lineWidth);
+			DoAAL(v1,v2,v3,lineWidth);
 			//DoEFLA(v1,v2,v3);
 		glEnd();
 	}
-	rotation += 0.2;
+	rotation += 0.2 * rotateSpeed;
 	/*
 	if (rgbup) {
   	rgb[0] += 0.004;
