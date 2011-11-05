@@ -19,7 +19,15 @@ using namespace std;
 
 int nRows = 640;
 int nCols = 480;
-float rotation = 100.0f;
+float rotation = 2.0f;
+float rx = 0.0f;
+float ry = 0.0f;
+float rz = 0.0f;
+float deltaAngle = 0.0f;
+float angle = 0.0f;
+int mButton = -1;
+int prevX = 0;
+int prevY = 0;
 
 TriangleMesh trig;
 
@@ -632,11 +640,6 @@ void myDisplay()
   int trignum = trig.trigNum();
   Vector3f v1, v2, v3;
   
-  // Rotate by:
-  float  ax         = 0.6f;
-  float  ay         = 0.6f;
-  float  az         = 0.6f;
-  
   // Translate by: 
   int    tx         = 20;
   int    ty         = 20;
@@ -659,10 +662,10 @@ void myDisplay()
     trig.getTriangleVertices(i, v1,v2,v3);
     
     // Let's manipulate the vertices!
-    //Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
+    Rotate(v1, v2, v3, rx, ry, rz);
     //Scale(v1, v2, v3, scaleCoeff);
     //Translate(v1, v2, v3, tx, ty, tz);
-    Shear(v1,v2,v3,sx,sy); // To keep things simple, only shear x,y
+    //Shear(v1,v2,v3,sx,sy); // To keep things simple, only shear x,y
     
     glBegin(GL_POINTS);
       glVertex2i((int)v1[0],(int)v1[1]);
@@ -678,9 +681,121 @@ void myDisplay()
       //DoEFLA(v1,v2,v3);          // An Extremely Fast Line Algorithm (found on the web)
     glEnd();
   }
-  rotation += 0.2 * rotateSpeed;
+  rx += 0.5;
+  ry += 0.5;
+  rz += 0.5;
   
   glFlush(); // Output everything
+}
+
+void myKB(unsigned char key, int x, int y)
+{
+  glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
+  
+  int trignum = trig.trigNum();
+  Vector3f v1, v2, v3;
+  
+  // Rotate by:
+  if (key == 'w') {
+    rz += rotation;
+  } else if (key == 's') {
+    rz -= rotation;
+  } else if (key == 'a') {
+    ry -= rotation;
+  } else if (key == 'd') {
+    ry += rotation;
+  }
+  
+  // Translate by: 
+  int    tx         = 20;
+  int    ty         = 20;
+  int    tz         = 20;
+  
+  // Shear by:
+  float  sx         = 1.0;
+  float  sy         = 1.0;
+  
+  double alpha      = 1.0;
+  float  scaleCoeff = 1.0f;
+  int    lineWidth  = 1;
+  
+  glColor4f(1.0,1.0,1.0,1.0); // Needed for every algorithm except anti-aliasing
+  
+  //cout << "Rotate x: " << rotation*ax << " ";
+  // for all the triangles, get the location of the vertices,
+  // project them on the xy plane, and color the corresponding pixel by white
+  for (int i = 0; i < trignum-1; i++) {
+    trig.getTriangleVertices(i, v1,v2,v3);
+    
+    // Let's manipulate the vertices!
+    Rotate(v1, v2, v3, rx, ry, rz);
+    //Scale(v1, v2, v3, scaleCoeff);
+    //Translate(v1, v2, v3, tx, ty, tz);
+    //Shear(v1,v2,v3,sx,sy); // To keep things simple, only shear x,y
+    
+    glBegin(GL_POINTS);
+      glVertex2i((int)v1[0],(int)v1[1]);
+      glVertex2i((int)v2[0],(int)v2[1]);
+      glVertex2i((int)v3[0],(int)v3[1]);
+      
+      // Let's draw some lines!
+      //DoDDA(v1,v2,v3);           // Simple DDA lines
+      DoBresenham(v1,v2,v3);     // Standard bresenham/midpoint lines
+      //DoSymwuline(v1,v2,v3);     // Wu patterns
+      //DoGS(v1,v2,v3);            // Gupta-Sproul + anti-aliasing
+      //DoAAL(v1,v2,v3,lineWidth); // Anti-aliased lines, hard to see
+      //DoEFLA(v1,v2,v3);          // An Extremely Fast Line Algorithm (found on the web)
+    glEnd();
+  }
+  
+  glFlush(); // Output everything
+}
+
+void myMouse(int button, int state, int x, int y) {
+  // only start motion if the left button is pressed
+	if (button == GLUT_LEFT_BUTTON) {
+		// when the button is released
+		if (state == GLUT_UP) {
+			angle += deltaAngle;
+			mButton = -1;
+		}
+		else  {// state = GLUT_DOWN
+			mButton = GLUT_LEFT_BUTTON;
+			prevX = x;
+		}
+	}
+	if (button == GLUT_RIGHT_BUTTON) {
+    // when the button is released
+		if (state == GLUT_UP) {
+			angle += deltaAngle;
+			mButton = -1;
+		}
+		else  {// state = GLUT_DOWN
+			mButton = GLUT_RIGHT_BUTTON;
+			prevX = x;
+		}
+	}
+}
+
+void myMotion(int x, int y) {
+  // this will only be true when the left button is down
+	if (mButton == GLUT_LEFT_BUTTON) {
+    if (prevX > x) {
+      ry += (prevX-x);
+    } else {
+      ry -= (x-prevX);
+    }
+    if (prevY > y) {
+      rz += (prevY-y);
+    } else {
+      rz -= (y-prevY);
+    }
+	}
+	
+	prevX = x;
+	prevY = y;
+	
+	myDisplay();
 }
 
 int main(int argc, char **argv)
@@ -704,7 +819,13 @@ int main(int argc, char **argv)
   glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
   glClearColor(0.0,0.0,0.0,0.0); // Set the bg colour
   
+  glutSetKeyRepeat(GLUT_KEY_REPEAT_ON);
+  
   glutDisplayFunc(myDisplay);// Callback function
   glutIdleFunc(myDisplay); // Display this while idling
+  //glutKeyboardFunc(myKB);
+  //glutMouseFunc(myMouse);
+  //glutMotionFunc(myMotion);
+  
   glutMainLoop();// Display everything and wait
 }
