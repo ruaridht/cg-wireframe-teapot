@@ -30,24 +30,6 @@ inline float Degrees(float rad) {
     return (180.f/(float)M_PI) * rad;
 }
 
-inline int Round(float n) {
-  return (int)floor(n + 0.5);
-}
-
-inline float FracPart(float n) {
-  return (float)(n - floor(n));
-}
-
-inline float RFracPart(float n) {
-  return (float)(1.0 - FracPart(n));
-}
-
-inline int IntPart(float n) {
-  return (int)floor(n);
-}
-
-// Classes ...
-
 class Vector3f;
 class Triangle;
 class TriangleMesh;
