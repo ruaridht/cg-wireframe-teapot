@@ -10,30 +10,95 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include "demo1.h"
 #include "math.h"
 
 using namespace std;
 
-int nRows = 1280; //640;
-int nCols = 960; //480; 
+int nRows = 640; //1280;
+int nCols = 480; //960; 
 float rotation = 100.0f;
-float rgb[] = { 1.0, 1.0, 1.0 };
-bool rgbup = false;
 
 TriangleMesh trig;
 
 #define swap(a,b)           {a^=b; b^=a; a^=b;}
 #define absolute(i,j,k)     ( (i-j)*(k = ( (i-j)<0 ? -1 : 1)))
 
-// Pixel drawing methods
-// non-zero flag indicates the pixels needing swap back
+/**********************************/
+/*           Load OBJ             */
+/**********************************/
+
+void TriangleMesh::loadFile(char * filename) {
+  ifstream f(filename);
+
+  if (f == NULL) {
+    cerr << "failed reading polygon data file " << filename << endl;
+    exit(1);
+  }
+
+  char buf[1024];
+  char header[100];
+  float x,y,z;
+  float xmax,ymax,zmax,xmin,ymin,zmin;
+  int v1, v2, v3, n1, n2, n3;
+
+  xmax =-10000; ymax =-10000; zmax =-10000;
+  xmin =10000; ymin =10000; zmin =10000;
+  Vector3f av;
+  av[0] = av[1] = av[2] = 0.f;
+
+  while (!f.eof()) {
+    f.getline(buf, sizeof(buf));
+    sscanf(buf, "%s", header);  
+
+    if (strcmp(header, "v") == 0) {
+      sscanf(buf, "%s %f %f %f", header, &x, &y, &z);  
+      
+      //  x *= 1000; y *= 1000; z *= 1000;
+      _v.push_back(Vector3f(x,y,z));
+      av[0] += x; av[1] += y; av[2] += z;
+
+      if (x > xmax) xmax = x;
+      if (y > ymax) ymax = y;
+      if (z > zmax) zmax = z;
+
+      if (x < xmin) xmin = x;
+      if (y < ymin) ymin = y;
+      if (z < zmin) zmin = z;
+    } else if (strcmp(header, "f") == 0) {
+      sscanf(buf, "%s %d %d %d", header, &v1, &v2, &v3);
+      Triangle trig(v1-1, v2-1, v3-1);
+      _trig.push_back(trig);
+    }
+   }
+
+  _xmin = xmin; _ymin = ymin; _zmin = zmin;
+  _xmax = xmax; _ymax = ymax; _zmax = zmax;
+  
+  float range; 
+  if (xmax-xmin > ymax-ymin) range = xmax-xmin;
+  else range = ymax-ymin;
+
+  for (int j = 0; j < 3; j++) av[j] /= _v.size();
+
+  for (int i = 0; i < _v.size(); i++) {
+    for (int j = 0; j < 3; j++) _v[i][j] = (_v[i][j]-av[j])/range*400;  
+  }
+  cout << "trig " << _trig.size() << " vertices " << _v.size() << endl;
+  f.close();
+};
+
+/**********************************/
+/*        Draw the pixels         */
+/**********************************/
 void plot(int x, int y, int flag) {
-	if (flag)
-		glVertex2i(y, x);
-	else
-		glVertex2i(x, y);
+  // non-zero flag indicates the pixels needing to be swapped
+  if (flag)
+    glVertex2i(y, x);
+  else
+    glVertex2i(x, y);
 }
 
 void putpixel(int x, int y, float alpha) {
@@ -41,215 +106,211 @@ void putpixel(int x, int y, float alpha) {
   glVertex2i(x,y);
 }
 
+/**********************************/
+/*        Line algorithms         */
+/**********************************/
 void EFLA(int x, int y, int x2, int y2) {
-	bool yLonger=false;
-	int incrementVal, endVal;
+  bool yLonger=false;
+  int incrementVal, endVal;
 
-	int shortLen=y2-y;
-	int longLen=x2-x;
-	if (abs(shortLen)>abs(longLen)) {
-		int swap=shortLen;
-		shortLen=longLen;
-		longLen=swap;
-		yLonger=true;
-	}
-	
-	endVal=longLen;
-	if (longLen<0) {
-		incrementVal=-1;
-		longLen=-longLen;
-	} else incrementVal=1;
+  int shortLen=y2-y;
+  int longLen=x2-x;
+  if (abs(shortLen)>abs(longLen)) {
+    int swap=shortLen;
+    shortLen=longLen;
+    longLen=swap;
+    yLonger=true;
+  }
+  
+  endVal=longLen;
+  if (longLen<0) {
+    incrementVal=-1;
+    longLen=-longLen;
+  } else incrementVal=1;
 
-	double decInc;
-	if (longLen==0) decInc=(double)shortLen;
-	else decInc=((double)shortLen/(double)longLen);
-	double j=0.0;
-	if (yLonger) {
-		for (int i=0;i!=endVal;i+=incrementVal) {
-			glVertex2i(x+(int)j,y+i);
-			j+=decInc;
-		}
-	} else {
-		for (int i=0;i!=endVal;i+=incrementVal) {
-			glVertex2i(x+i,y+(int)j);
-			j+=decInc;
-		}
-	}
+  double decInc;
+  if (longLen==0) decInc=(double)shortLen;
+  else decInc=((double)shortLen/(double)longLen);
+  double j=0.0;
+  if (yLonger) {
+    for (int i=0;i!=endVal;i+=incrementVal) {
+      glVertex2i(x+(int)j,y+i);
+      j+=decInc;
+    }
+  } else {
+    for (int i=0;i!=endVal;i+=incrementVal) {
+      glVertex2i(x+i,y+(int)j);
+      j+=decInc;
+    }
+  }
 }
 
 void symwuline(int a1, int b1, int a2, int b2) {
-	int           dx, dy, incr1, incr2, D, x, y, xend, c, pixels_left;
-	int           x1, y1;
-	int           sign_x, sign_y, step, reverse, i;
+  int dx, dy, incr1, incr2, D, x, y, xend, c, pixels_left;
+  int x1, y1;
+  int sign_x, sign_y, step, reverse, i;
 
-	dx = absolute(a2, a1, sign_x);
-	dy = absolute(b2, b1, sign_y);
-	/* decide increment sign by the slope sign */
-	if (sign_x == sign_y)
-		step = 1;
-	else
-		step = -1;
+  dx = absolute(a2, a1, sign_x);
+  dy = absolute(b2, b1, sign_y);
+  /* decide increment sign by the slope sign */
+  if (sign_x == sign_y)
+    step = 1;
+  else
+    step = -1;
 
-	if (dy > dx) {		/* chooses axis of greatest movement (make * dx) */
-		swap(a1, b1);
-		swap(a2, b2);
-		swap(dx, dy);
-		reverse = 1;
-	} else
-		reverse = 0;
-	/* note error check for dx==0 should be included here */
-	if (a1 > a2) {		/* start from the smaller coordinate */
-		x = a2;
-		y = b2;
-		x1 = a1;
-		y1 = b1;
-	} else {
-		x = a1;
-		y = b1;
-		x1 = a2;
-		y1 = b2;
-	}
+  if (dy > dx) {  /* chooses axis of greatest movement (make * dx) */
+    swap(a1, b1);
+    swap(a2, b2);
+    swap(dx, dy);
+    reverse = 1;
+  } else
+    reverse = 0;
+  /* note error check for dx==0 should be included here */
+  if (a1 > a2) {  /* start from the smaller coordinate */
+    x = a2;
+    y = b2;
+    x1 = a1;
+    y1 = b1;
+  } else {
+    x = a1;
+    y = b1;
+    x1 = a2;
+    y1 = b2;
+  }
+  
+  xend = (dx - 1) / 4;
+  pixels_left = (dx - 1) % 4;  /* number of pixels left over at the end */
+  plot(x, y, reverse);
+  if ( pixels_left < 0 ) return ;  /* plot only one pixel for zero length vectors */
+  plot(x1, y1, reverse);  /* plot first two points */
+  incr2 = 4 * dy - 2 * dx;
+  if (incr2 < 0) {  /* slope less than 1/2 */
+    c = 2 * dy;
+    incr1 = 2 * c;
+    D = incr1 - dx;
 
-
-	/* Note dx=n implies 0 - n or (dx+1) pixels to be set */
-	/* Go round loop dx/4 times then plot last 0,1,2 or 3 pixels */
-	/* In fact (dx-1)/4 as 2 pixels are already plotted */
-	xend = (dx - 1) / 4;
-	pixels_left = (dx - 1) % 4;	/* number of pixels left over at the
-					 			 * end */
-	plot(x, y, reverse);
-	if ( pixels_left < 0 ) return ;	/* plot only one pixel for zero
-							* length vectors */
-	plot(x1, y1, reverse);	/* plot first two points */
-	incr2 = 4 * dy - 2 * dx;
-	if (incr2 < 0) {	/* slope less than 1/2 */
-		c = 2 * dy;
-		incr1 = 2 * c;
-		D = incr1 - dx;
-
-		for (i = 0; i < xend; i++) {	/* plotting loop */
-			++x;
-			--x1;
-			if (D < 0) {
+    for (i = 0; i < xend; i++) {  /* plotting loop */
+      ++x;
+      --x1;
+      if (D < 0) {
         /* pattern 1 forwards */
-				plot(x, y, reverse);
-				plot(++x, y, reverse);
+        plot(x, y, reverse);
+        plot(++x, y, reverse);
         /* pattern 1 backwards */
-				plot(x1, y1, reverse);
-				plot(--x1, y1, reverse);
-				D += incr1;
-			} else {
-				if (D < c) {
-					/* pattern 2 forwards */
-					plot(x, y, reverse);
-					plot(++x, y += step, reverse);
-					/* pattern 2 backwards */
-					plot(x1, y1, reverse);
-					plot(--x1, y1 -= step, reverse);	
-				} else {
-				        /* pattern 3 forwards */
-					plot(x, y += step, reverse);
-					plot(++x, y, reverse);
-					/* pattern 3 backwards */
-					plot(x1, y1 -= step, reverse);
-					plot(--x1, y1, reverse);
-				}
-				D += incr2;
-			}
-		}		/* end for */
+        plot(x1, y1, reverse);
+        plot(--x1, y1, reverse);
+        D += incr1;
+      } else {
+        if (D < c) {
+          /* pattern 2 forwards */
+          plot(x, y, reverse);
+          plot(++x, y += step, reverse);
+          /* pattern 2 backwards */
+          plot(x1, y1, reverse);
+          plot(--x1, y1 -= step, reverse);  
+        } else {
+                /* pattern 3 forwards */
+          plot(x, y += step, reverse);
+          plot(++x, y, reverse);
+          /* pattern 3 backwards */
+          plot(x1, y1 -= step, reverse);
+          plot(--x1, y1, reverse);
+        }
+        D += incr2;
+      }
+    }    /* end for */
 
-		/* plot last pattern */
-		if (pixels_left) {
-			if (D < 0) {
-				plot(++x, y, reverse);	/* pattern 1 */
-				if (pixels_left > 1)
-					plot(++x, y, reverse);
-				if (pixels_left > 2)
-					plot(--x1, y1, reverse);
-			} else {
-				if (D < c) {
-					plot(++x, y, reverse);	/* pattern 2  */
-					if (pixels_left > 1)
-						plot(++x, y += step, reverse);
-					if (pixels_left > 2)
-						plot(--x1, y1, reverse);
-				} else {
-				  /* pattern 3 */
-					plot(++x, y += step, reverse);
-					if (pixels_left > 1)
-						plot(++x, y, reverse);
-					if (pixels_left > 2)
-						plot(--x1, y1 -= step, reverse);
-				}
-			}
-		}		/* end if pixels_left */
-	}
-	/* end slope < 1/2 */
-	else {			/* slope greater than 1/2 */
-		c = 2 * (dy - dx);
-		incr1 = 2 * c;
-		D = incr1 + dx;
-		for (i = 0; i < xend; i++) {
-			++x;
-			--x1;
-			if (D > 0) {
-			  /* pattern 4 forwards */
-				plot(x, y += step, reverse);
-				plot(++x, y += step, reverse);
-			  /* pattern 4 backwards */
-				plot(x1, y1 -= step, reverse);
-				plot(--x1, y1 -= step, reverse);
-				D += incr1;
-			} else {
-				if (D < c) {
-				  /* pattern 2 forwards */
-					plot(x, y, reverse);
-					plot(++x, y += step, reverse);
-
- 				  /* pattern 2 backwards */
-					plot(x1, y1, reverse);
-					plot(--x1, y1 -= step, reverse);
-				} else {
-				  /* pattern 3 forwards */
-					plot(x, y += step, reverse);
-					plot(++x, y, reverse);
-				  /* pattern 3 backwards */
-					plot(x1, y1 -= step, reverse);
-					plot(--x1, y1, reverse);
-				}
-				D += incr2;
-			}
-		}		/* end for */
-		/* plot last pattern */
-		if (pixels_left) {
-			if (D > 0) {
-				plot(++x, y += step, reverse);	/* pattern 4 */
-				if (pixels_left > 1)
-					plot(++x, y += step, reverse);
-				if (pixels_left > 2)
-					plot(--x1, y1 -= step, reverse);
-			} else {
-				if (D < c) {
-					plot(++x, y, reverse);	/* pattern 2  */
-					if (pixels_left > 1)
-						plot(++x, y += step, reverse);
-					if (pixels_left > 2)
-						plot(--x1, y1, reverse);
-				} else {
-				  /* pattern 3 */
-					plot(++x, y += step, reverse);
-					if (pixels_left > 1)
-						plot(++x, y, reverse);
-					if (pixels_left > 2) {
-						if (D > c) /* step 3 */
-						   plot(--x1, y1 -= step, reverse);
-						else /* step 2 */
-							plot(--x1, y1, reverse);
-                         		}
-				}
-			}
-		}
-	}
+    /* plot last pattern */
+    if (pixels_left) {
+      if (D < 0) {
+        plot(++x, y, reverse);  /* pattern 1 */
+        if (pixels_left > 1)
+          plot(++x, y, reverse);
+        if (pixels_left > 2)
+          plot(--x1, y1, reverse);
+      } else {
+        if (D < c) {
+          plot(++x, y, reverse);  /* pattern 2  */
+          if (pixels_left > 1)
+            plot(++x, y += step, reverse);
+          if (pixels_left > 2)
+            plot(--x1, y1, reverse);
+        } else {
+          /* pattern 3 */
+          plot(++x, y += step, reverse);
+          if (pixels_left > 1)
+            plot(++x, y, reverse);
+          if (pixels_left > 2)
+            plot(--x1, y1 -= step, reverse);
+        }
+      }
+    }  /* end if pixels_left */
+  }
+  /* end slope < 1/2 */
+  else { /* slope greater than 1/2 */
+    c = 2 * (dy - dx);
+    incr1 = 2 * c;
+    D = incr1 + dx;
+    for (i = 0; i < xend; i++) {
+      ++x;
+      --x1;
+      if (D > 0) {
+        /* pattern 4 forwards */
+        plot(x, y += step, reverse);
+        plot(++x, y += step, reverse);
+        /* pattern 4 backwards */
+        plot(x1, y1 -= step, reverse);
+        plot(--x1, y1 -= step, reverse);
+        D += incr1;
+      } else {
+        if (D < c) {
+          /* pattern 2 forwards */
+          plot(x, y, reverse);
+          plot(++x, y += step, reverse);
+           /* pattern 2 backwards */
+          plot(x1, y1, reverse);
+          plot(--x1, y1 -= step, reverse);
+        } else {
+          /* pattern 3 forwards */
+          plot(x, y += step, reverse);
+          plot(++x, y, reverse);
+          /* pattern 3 backwards */
+          plot(x1, y1 -= step, reverse);
+          plot(--x1, y1, reverse);
+        }
+        D += incr2;
+      }
+    }  /* end for */
+    /* plot last pattern */
+    if (pixels_left) {
+      if (D > 0) {
+        plot(++x, y += step, reverse);  /* pattern 4 */
+        if (pixels_left > 1)
+          plot(++x, y += step, reverse);
+        if (pixels_left > 2)
+          plot(--x1, y1 -= step, reverse);
+      } else {
+        if (D < c) {
+          plot(++x, y, reverse);  /* pattern 2  */
+          if (pixels_left > 1)
+            plot(++x, y += step, reverse);
+          if (pixels_left > 2)
+            plot(--x1, y1, reverse);
+        } else {
+          /* pattern 3 */
+          plot(++x, y += step, reverse);
+          if (pixels_left > 1)
+            plot(++x, y, reverse);
+          if (pixels_left > 2) {
+            if (D > c) /* step 3 */
+               plot(--x1, y1 -= step, reverse);
+            else /* step 2 */
+              plot(--x1, y1, reverse);
+                             }
+        }
+      }
+    }
+  }
 }
 
 void XiaolinWu(int X0, int Y0, int X1, int Y1) {
@@ -262,8 +323,7 @@ void XiaolinWu(int X0, int Y0, int X1, int Y1) {
       Temp = Y0; Y0 = Y1; Y1 = Temp;
       Temp = X0; X0 = X1; X1 = Temp;
     }
-    /* Draw the initial pixel, which is always exactly intersected by
-      the line and so needs no weighting */
+    
     putpixel(X0, Y0, 1.0);
     
     if ((DeltaX = X1 - X0) >= 0) {
@@ -272,9 +332,7 @@ void XiaolinWu(int X0, int Y0, int X1, int Y1) {
       XDir = -1;
       DeltaX = -DeltaX; /* make DeltaX positive */
     }
-    /* Special-case horizontal, vertical, and diagonal lines, which
-      require no weighting because they go right through the center of
-      every pixel */
+    
     if ((DeltaY = Y1 - Y0) == 0) {
       /* Horizontal line */
       while (DeltaX-- != 0) {
@@ -301,17 +359,10 @@ void XiaolinWu(int X0, int Y0, int X1, int Y1) {
       return;
     }
     /* Line is not horizontal, diagonal, or vertical */
-    ErrorAcc = 0;  /* initialize the line error accumulator to 0 */
-    /* # of bits by which to shift ErrorAcc to get intensity level */
-    //IntensityShift = 16 - IntensityBits;
-    /* Mask used to flip all bits in an intensity weighting, producing the
-      result (1 - intensity weighting) */
-    //WeightingComplementMask = NumLevels - 1;
-    /* Is this an X-major or Y-major line? */
+    ErrorAcc = 0;
+    
     if (DeltaY > DeltaX) {
-      /* Y-major line; calculate 16-bit fixed-point fractional part of a
-         pixel that X advances each time Y advances 1 pixel, truncating the
-         result so that we won't overrun the endpoint along the X axis */
+      
       ErrorAdj = ((unsigned long) DeltaX) / (unsigned long) DeltaY;
       /* Draw all pixels other than the first and last */
       while (--DeltaY) {
@@ -322,21 +373,16 @@ void XiaolinWu(int X0, int Y0, int X1, int Y1) {
             X0 += XDir;
          }
          Y0++; /* Y-major, so always advance Y */
-         /* The IntensityBits most significant bits of ErrorAcc give us the
-            intensity weighting for this pixel, and the complement of the
-            weighting for the paired pixel */
+         
          Weighting = ErrorAcc; // >> IntensityShift;
          putpixel(X0, Y0, Weighting);
          putpixel(X0 + XDir, Y0, Weighting);
       }
-      /* Draw the final pixel, which is always exactly intersected by the line
-         and so needs no weighting */
+      
       putpixel(X1, Y1, 1.0);
       return;
     }
-    /* It's an X-major line; calculate 16-bit fixed-point fractional part of a
-      pixel that Y advances each time X advances 1 pixel, truncating the
-      result to avoid overrunning the endpoint along the X axis */
+    
     ErrorAdj = ((unsigned long) DeltaY) / (unsigned long) DeltaX;
     /* Draw all pixels other than the first and last */
     while (--DeltaX) {
@@ -346,22 +392,17 @@ void XiaolinWu(int X0, int Y0, int X1, int Y1) {
          /* The error accumulator turned over, so advance the Y coord */
          Y0++;
       }
-      X0 += XDir; /* X-major, so always advance X */
-      /* The IntensityBits most significant bits of ErrorAcc give us the
-         intensity weighting for this pixel, and the complement of the
-         weighting for the paired pixel */
+      X0 += XDir;
       Weighting = ErrorAcc; // >> IntensityShift;
       putpixel(X0, Y0, Weighting);
       putpixel(X0, Y0 + 1, Weighting);
     }
-    /* Draw the final pixel, which is always exactly intersected by the line
-      and so needs no weighting */
     putpixel(X1, Y1, 1.0);
 }
 
-void AA_Line(int x1, int y1, int x2, int y2, int linewidth) {
-  int dx = abs(x1 - x2); 
-  int dy = abs(y1 - y2);
+void AALine(int x1, int y1, int x2, int y2, int linewidth) {
+  int dx = fabs(x1 - x2); 
+  int dy = fabs(y1 - y2);
   int error, sign, tmp;
   float ipix;
   int step = linewidth;
@@ -369,70 +410,70 @@ void AA_Line(int x1, int y1, int x2, int y2, int linewidth) {
   // Check whether the slope is more vertical or horizontal.
   // Vertical means we anti-alias the sides, horizontal is top n' bottom
   if (dx >= dy) {
-  	if (x1 > x2) {
-	    tmp = x1;
-	    x1 = x2;
-	    x2 = tmp;
-	    tmp = y1;
-	    y1 = y2;
-	    y2 = tmp;
-  	}
-  	error = dx / 2;
-  	if (y2 > y1)
-	    sign = step;
+    if (x1 > x2) {
+      tmp = x1;
+      x1 = x2;
+      x2 = tmp;
+      tmp = y1;
+      y1 = y2;
+      y2 = tmp;
+    }
+    error = dx / 2;
+    if (y2 > y1)
+      sign = step;
     else
-	    sign = -step;
-  	putpixel(x1,y1,1.0);
-  	
-  	while (x1 < x2) {
+      sign = -step;
+    putpixel(x1,y1,1.0);
+    
+    while (x1 < x2) {
       if ((error -= dy) < 0) {
-    		y1 += sign;
-    		error += dx;
+        y1 += sign;
+        error += dx;
       }
       x1 += step;
       ipix = (float)error / dx;
   
       if (sign == step)
-  	    ipix = 1 - ipix;
-  	    
+        ipix = 1 - ipix;
+        
       putpixel(x1, y1, 1.0);
       putpixel(x1, y1 - step, (1- ipix));
       putpixel(x1, y1 + step, ipix);
-  	}
+    }
     putpixel(x2, y2, 1.0);
   } else {
-  	if (y1 > y2) {
-	    tmp = x1;
-	    x1 = x2;
-	    x2 = tmp;
-	    tmp = y1;
-	    y1 = y2;
-	    y2 = tmp;
-  	}
+    if (y1 > y2) {
+      tmp = x1;
+      x1 = x2;
+      x2 = tmp;
+      tmp = y1;
+      y1 = y2;
+      y2 = tmp;
+    }
     error = dy / 2;
   
-  	if (x2 > x1)
+    if (x2 > x1)
       sign = step;
-  	else
+    else
       sign = -step;
       
     putpixel(x1, y1, 1.0);
-  	while (y1 < y2) {
+    while (y1 < y2) {
       if ((error -= dx) < 0) {
-  		  x1 += sign;
-  		  error += dy;
+        x1 += sign;
+        error += dy;
       }
       y1 += step;
       ipix = (float)error / dy;
   
       if (sign == step)
-  		  ipix = 1 - ipix;
+        ipix = 1 - ipix;
   
       putpixel(x1, y1, 1.0);
       putpixel(x1 - step, y1, (1 - ipix));
       putpixel(x1 + step, y1, ipix);
-  	}
-  	putpixel(x2, y2, 1.0);
+    }
+    putpixel(x2, y2, 1.0);
   }
 }
 
@@ -560,75 +601,9 @@ void MidpointLine(int x1, int y1, int x2, int y2) {
   }
 }
 
-void TriangleMesh::loadFile(char * filename)
-{
-	ifstream f(filename);
-
-
-	if (f == NULL) {
-		cerr << "failed reading polygon data file " << filename << endl;
-		exit(1);
-	}
-
-	char buf[1024];
-	char header[100];
-	float x,y,z;
-	float xmax,ymax,zmax,xmin,ymin,zmin;
-	int v1, v2, v3, n1, n2, n3;
-
-	xmax =-10000; ymax =-10000; zmax =-10000;
-	xmin =10000; ymin =10000; zmin =10000;
-	Vector3f av;
-	av[0] = av[1] = av[2] = 0.f;
-
-	while (!f.eof()) {
-		    f.getline(buf, sizeof(buf));
-		    sscanf(buf, "%s", header);  
-
-		    if (strcmp(header, "v") == 0) {
-			sscanf(buf, "%s %f %f %f", header, &x, &y, &z);  
-
-		//	x *= 1000; y *= 1000; z *= 1000;
-
-			_v.push_back(Vector3f(x,y,z));
-
-
-			av[0] += x; av[1] += y; av[2] += z;
-
-			if (x > xmax) xmax = x;
-			if (y > ymax) ymax = y;
-			if (z > zmax) zmax = z;
-
-			if (x < xmin) xmin = x;
-			if (y < ymin) ymin = y;
-			if (z < zmin) zmin = z;
-		    }
-		    else if (strcmp(header, "f") == 0) {
-			sscanf(buf, "%s %d %d %d", header, &v1, &v2, &v3);
-			
-			Triangle trig(v1-1, v2-1, v3-1);
-			_trig.push_back(trig);
-
-		    }
- 	}
-
-	_xmin = xmin; _ymin = ymin; _zmin = zmin;
-	_xmax = xmax; _ymax = ymax; _zmax = zmax;
-  
-	float range; 
-	if (xmax-xmin > ymax-ymin) range = xmax-xmin;
-	else range = ymax-ymin;
-
-	for (int j = 0; j < 3; j++) av[j] /= _v.size();
-
-	for (int i = 0; i < _v.size(); i++) 
-	{
-		for (int j = 0; j < 3; j++) _v[i][j] = (_v[i][j]-av[j])/range*400;  
-	}
-	cout << "trig " << _trig.size() << " vertices " << _v.size() << endl;
-	f.close();
-};
-
+/**********************************/
+/*           Rotation             */
+/**********************************/
 
 void RotateX(Vector3f &v, float angle) {
   angle = Radians(angle);
@@ -675,6 +650,10 @@ void Rotate(Vector3f &v1, Vector3f &v2, Vector3f &v3, float ax, float ay, float 
   RotateZ(v3,az);
 }
 
+/**********************************/
+/*             Scale              */
+/**********************************/
+
 void Scale(Vector3f &v1, Vector3f &v2, Vector3f &v3, float sc) {
   float x,y,z;
   x = v1[0]*sc;
@@ -698,6 +677,10 @@ void Scale(Vector3f &v1, Vector3f &v2, Vector3f &v3, float sc) {
   v3[1] = y;
   v3[2] = z;
 }
+
+/**********************************/
+/*          Line Drawing          */
+/**********************************/
 
 void DoBresenham(Vector3f v1, Vector3f v2, Vector3f v3) {
   Bresenham(v1[0], v1[1], v2[0], v2[1]);
@@ -736,9 +719,9 @@ void DoGS(Vector3f v1, Vector3f v2, Vector3f v3) {
 }
 
 void DoAAL(Vector3f v1, Vector3f v2, Vector3f v3, int width) {
-  AA_Line(v1[0], v1[1], v2[0], v2[1], width);
-  AA_Line(v1[0], v1[1], v3[0], v3[1], width);
-  AA_Line(v2[0], v2[1], v3[0], v3[1], width);
+  AALine(v1[0], v1[1], v2[0], v2[1], width);
+  AALine(v1[0], v1[1], v3[0], v3[1], width);
+  AALine(v2[0], v2[1], v3[0], v3[1], width);
 }
 
 void DoEFLA(Vector3f v1, Vector3f v2, Vector3f v3) {
@@ -747,69 +730,38 @@ void DoEFLA(Vector3f v1, Vector3f v2, Vector3f v3) {
   EFLA(v2[0], v2[1], v3[0], v3[1]);
 }
 
+/**********************************/
+/*            Display             */
+/**********************************/
+
 void myDisplay()
 {
-	glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
+  glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
+  //glClearColor(0.0,0.0,0.0,0.0);
   
-	int trignum = trig.trigNum();
-	Vector3f v1, v2, v3;
-	
-	float  ax         = 0.6f;
-	float  ay         = 0.6f;
-	float  az         = 0.6f;
-	double alpha      = 1.0;
-	float  scaleCoeff = 3.0f;
-	int    lineWidth  = 1;
-	int    rotateSpeed= 4;
+  int trignum = trig.trigNum();
+  Vector3f v1, v2, v3;
   
-  if (rgb[0] >= 1.0) {
-    rgbup = false;
-  } else if (rgb[0] <= 0.0) {
-    rgbup = true;
-  }
+  float  ax         = 0.6f;
+  float  ay         = 0.6f;
+  float  az         = 0.6f;
+  double alpha      = 1.0;
+  float  scaleCoeff = 1.0f;
+  int    lineWidth  = 1;
+  int    rotateSpeed= 4;
   
-	glColor4f(rgb[0],rgb[1],rgb[2],alpha);  // change the colour of the pixel and set alpha
-  //glColor4f(1.0,1.0,1.0,alpha);
+  glColor4f(1.0,1.0,1.0,1.0); // Needed for every algorithm except anti-aliasing
   
-	// for all the triangles, get the location of the vertices,
-	// project them on the xy plane, and color the corresponding pixel by white
-	for (int i = 0; i < trignum-1; i++) {
-		trig.getTriangleVertices(i, v1,v2,v3);
+  // for all the triangles, get the location of the vertices,
+  // project them on the xy plane, and color the corresponding pixel by white
+  //glBegin(GL_POINTS);
+  for (int i = 0; i < trignum-1; i++) {
+    trig.getTriangleVertices(i, v1,v2,v3);
     
-    Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
-    Scale(v1, v2, v3, scaleCoeff);
+    // Let's manipulate the vertices!
+    //Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
+    //Scale(v1, v2, v3, scaleCoeff);
     //Translate();
-<<<<<<< HEAD
-    
-		glBegin(GL_POINTS);
-		  //glColor4f(1.0,1.0,1.0,alpha);
-			//glColor4f(rgb[0],rgb[1],rgb[2],alpha);
-			
-			glVertex2i((int)v1[0],(int)v1[1]);
-			glVertex2i((int)v2[0],(int)v2[1]);
-			glVertex2i((int)v3[0],(int)v3[1]);
-			
-			//DoMidpoint(v1,v2,v3);
-			//DoBresenham(v1,v2,v3);
-		  //DoXiaolinWu(v1,v2,v3);
-			//DoSymwuline(v1,v2,v3);
-			//DoGS(v1,v2,v3);
-			//DoAAB(v1,v2,v3);
-			DoAAL(v1,v2,v3,lineWidth);
-			//DoEFLA(v1,v2,v3);
-		glEnd();
-	}
-	rotation += 0.2 * rotateSpeed;
-	/*
-	if (rgbup) {
-  	rgb[0] += 0.004;
-  	rgb[1] += 0.016;
-  	rgb[2] += 0.010;
-  } else {
-    rgb[0] -= 0.010;
-  	rgb[1] -= 0.016;
-  	rgb[2] -= 0.004;
-=======
     glBegin(GL_POINTS);
       glVertex2i((int)v1[0],(int)v1[1]);
       glVertex2i((int)v2[0],(int)v2[1]);
@@ -822,42 +774,38 @@ void myDisplay()
       //DoSymwuline(v1,v2,v3); // Wu patterns
       //DoGS(v1,v2,v3); // Gupta-Sproul
       //DoAAB(v1,v2,v3); // Anti-aliased bresenham
-      //DoAAL(v1,v2,v3,lineWidth); // Anti-aliased lines
+      DoAAL(v1,v2,v3,lineWidth); // Anti-aliased lines
       //DoEFLA(v1,v2,v3);
     glEnd();
->>>>>>> back to where I started
   }
-	*/
-	glFlush();// Output everything
+  rotation += 0.2 * rotateSpeed;
+  
+  glFlush(); // Output everything
 }
-
 
 int main(int argc, char **argv)
 {
-	if (argc >  1)  {
-		trig.loadFile(argv[1]);
-	}
-	else {
-		cerr << argv[0] << " <filename> " << endl;
-		exit(1);
-	}
+  if (argc >  1)  {
+    trig.loadFile(argv[1]);
+  }
+  else {
+    cerr << argv[0] << " <filename> " << endl;
+    exit(1);
+  }
 
-	int width, height;
-	glutInit(&argc, argv);
-	glutInitWindowSize(nRows, nCols);
-	glutCreateWindow("SimpleExample");
-	
-	gluOrtho2D(-nRows/2, nRows/2, -(float)nCols/2,  (float)nCols/2);
-	
-	//glEnable(GL_ALPHA_TEST);
-	glEnable(GL_BLEND);
-	glEnable(GL_POINT_SMOOTH);
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
-	//glAlphaFunc(GL_GREATER,0.1f);
-	glClearColor(0.0,0.0,0.0,0.0); // similarly
-	
-	glutDisplayFunc(myDisplay);// Callback function
-	glutIdleFunc(myDisplay); // Idling
-	glutMainLoop();// Display everything and wait
+  int width, height;
+  glutInit(&argc, argv);
+  glutInitWindowSize(nRows, nCols);
+  glutCreateWindow("SimpleExample");
+  
+  gluOrtho2D(-nRows/2, nRows/2, -(float)nCols/2,  (float)nCols/2);
+  
+  glEnable(GL_BLEND);
+  glEnable(GL_POINT_SMOOTH);
+  glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+  glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
+  glClearColor(0.0,0.0,0.0,0.0); // similarly
+  
+  glutDisplayFunc(myDisplay);// Callback function
+  glutMainLoop();// Display everything and wait
 }
