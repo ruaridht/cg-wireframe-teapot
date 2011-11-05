@@ -779,6 +779,7 @@ void myDisplay()
     Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
     Scale(v1, v2, v3, scaleCoeff);
     //Translate();
+<<<<<<< HEAD
     
 		glBegin(GL_POINTS);
 		  //glColor4f(1.0,1.0,1.0,alpha);
@@ -808,6 +809,23 @@ void myDisplay()
     rgb[0] -= 0.010;
   	rgb[1] -= 0.016;
   	rgb[2] -= 0.004;
+=======
+    glBegin(GL_POINTS);
+      glVertex2i((int)v1[0],(int)v1[1]);
+      glVertex2i((int)v2[0],(int)v2[1]);
+      glVertex2i((int)v3[0],(int)v3[1]);
+      
+      // Let's draw some lines!
+      //DoMidpoint(v1,v2,v3); // Midpoint (bresenham?)
+      DoBresenham(v1,v2,v3); // Standard bresenham
+      //DoXiaolinWu(v1,v2,v3); // Xu non-patterns
+      //DoSymwuline(v1,v2,v3); // Wu patterns
+      //DoGS(v1,v2,v3); // Gupta-Sproul
+      //DoAAB(v1,v2,v3); // Anti-aliased bresenham
+      //DoAAL(v1,v2,v3,lineWidth); // Anti-aliased lines
+      //DoEFLA(v1,v2,v3);
+    glEnd();
+>>>>>>> back to where I started
   }
 	*/
 	glFlush();// Output everything
