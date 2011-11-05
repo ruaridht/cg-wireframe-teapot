@@ -25,6 +25,7 @@ TriangleMesh trig;
 
 #define swap(a,b)           {a^=b; b^=a; a^=b;}
 #define absolute(i,j,k)     ( (i-j)*(k = ( (i-j)<0 ? -1 : 1)))
+#define max(a,b)            ( (a<b) ? b : a)
 
 /**********************************/
 /*           Load OBJ             */
@@ -345,12 +346,12 @@ void AALine(int x1, int y1, int x2, int y2, int linewidth) {
       }
       x1 += step;
       ipix = (float)error / dx;
-  
+      
       if (sign == step)
-        ipix = 1 - ipix;
-        
+        ipix = 1.0 - ipix;
+      
       putpixel(x1, y1, 1.0);
-      putpixel(x1, y1 - step, (1- ipix));
+      putpixel(x1, y1 - step, (1.0 - ipix));
       putpixel(x1, y1 + step, ipix);
     }
     putpixel(x2, y2, 1.0);
@@ -390,7 +391,7 @@ void AALine(int x1, int y1, int x2, int y2, int linewidth) {
   }
 }
 
-void GuptaSproul(int x0, int y0, int x1, int y1) {
+void GuptaSproull(int x0, int y0, int x1, int y1) {
   int dx, dy, sx=-1, sy=-1, err, e2;
   float numerator, denominator, capD, dUpper, dLower;
   
@@ -419,13 +420,11 @@ void GuptaSproul(int x0, int y0, int x1, int y1) {
     
     numerator = err;
     denominator = 2.0*(sqrt(dx*dx + dy*dy));
-    dUpper = (2.0*dx - 2.0*numerator)/denominator;
-    dLower = (2.0*dx + 2.0*numerator)/denominator;
+    dUpper = (2.0*dx - 2.0*numerator)/(2.0*denominator);
+    dLower = (2.0*dx + 2.0*numerator)/(2.0*denominator);
     
-    // Anti-aliasing doesn't work very well...
     putpixel(x0,y0+1,dUpper);
     putpixel(x0,y0-1,dLower);
-    
   } while (true);
 }
 
@@ -460,7 +459,7 @@ void Bresenham(int x0, int y0, int x1, int y1) {
 void DDALine(int x1, int y1, int x2, int y2) {
   float x, y;
   int dx = x2-x1, dy = y2-y1;
-  int n = max(abs(dx),abs(dy));
+  int n = max(fabs(dx),fabs(dy));
   
   float dt = n, dxdt = dx/dt, dydt = dy/dt;
   x = x1;
@@ -560,16 +559,16 @@ void Scale(Vector3f &v1, Vector3f &v2, Vector3f &v3, float sc) {
 /**********************************/
 /*          Line Drawing          */
 /**********************************/
+void DoDDA(Vector3f v1, Vector3f v2, Vector3f v3) {
+  DDALine(v1[0], v1[1], v2[0], v2[1]);
+  DDALine(v1[0], v1[1], v3[0], v3[1]);
+  DDALine(v2[0], v2[1], v3[0], v3[1]);
+}
+
 void DoBresenham(Vector3f v1, Vector3f v2, Vector3f v3) {
   Bresenham(v1[0], v1[1], v2[0], v2[1]);
   Bresenham(v1[0], v1[1], v3[0], v3[1]);
   Bresenham(v2[0], v2[1], v3[0], v3[1]);
-}
-
-void DoMidpoint(Vector3f v1, Vector3f v2, Vector3f v3) {
-  MidpointLine(v1[0], v1[1], v2[0], v2[1]);
-  MidpointLine(v1[0], v1[1], v3[0], v3[1]);
-  MidpointLine(v2[0], v2[1], v3[0], v3[1]);
 }
 
 void DoWuLine(Vector3f v1, Vector3f v2, Vector3f v3) {
@@ -579,9 +578,9 @@ void DoWuLine(Vector3f v1, Vector3f v2, Vector3f v3) {
 }
 
 void DoGS(Vector3f v1, Vector3f v2, Vector3f v3) {
-  GuptaSproul(v1[0], v1[1], v2[0], v2[1]);
-  GuptaSproul(v1[0], v1[1], v3[0], v3[1]);
-  GuptaSproul(v2[0], v2[1], v3[0], v3[1]);
+  GuptaSproull(v1[0], v1[1], v2[0], v2[1]);
+  GuptaSproull(v1[0], v1[1], v3[0], v3[1]);
+  GuptaSproull(v2[0], v2[1], v3[0], v3[1]);
 }
 
 void DoAAL(Vector3f v1, Vector3f v2, Vector3f v3, int width) {
@@ -603,7 +602,6 @@ void DoEFLA(Vector3f v1, Vector3f v2, Vector3f v3) {
 void myDisplay()
 {
   glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
-  //glClearColor(0.0,0.0,0.0,0.0);
   
   int trignum = trig.trigNum();
   Vector3f v1, v2, v3;
@@ -612,7 +610,7 @@ void myDisplay()
   float  ay         = 0.6f;
   float  az         = 0.6f;
   double alpha      = 1.0;
-  float  scaleCoeff = 2.0f;
+  float  scaleCoeff = 20.0f;
   int    lineWidth  = 1;
   int    rotateSpeed= 2;
   
@@ -624,7 +622,7 @@ void myDisplay()
     trig.getTriangleVertices(i, v1,v2,v3);
     
     // Let's manipulate the vertices!
-    //Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
+    Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
     Scale(v1, v2, v3, scaleCoeff);
     //Translate();
     
@@ -637,7 +635,7 @@ void myDisplay()
       //DoDDA(v1,v2,v3);           // Simple DDA lines
       //DoBresenham(v1,v2,v3);     // Standard bresenham/midpoint lines
       //DoSymwuline(v1,v2,v3);     // Wu patterns
-      //DoGS(v1,v2,v3);            // Gupta-Sproul + anti-aliasing
+      DoGS(v1,v2,v3);            // Gupta-Sproul + anti-aliasing
       //DoAAL(v1,v2,v3,lineWidth); // Anti-aliased lines, hard to see
       //DoEFLA(v1,v2,v3);          // An Extremely Fast Line Algorithm (found on the web)
     glEnd();
@@ -665,12 +663,10 @@ int main(int argc, char **argv)
   gluOrtho2D(-nRows/2, nRows/2, -(float)nCols/2,  (float)nCols/2);
   
   glEnable(GL_BLEND);
-  //glEnable(GL_POINT_SMOOTH);
   glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-  //glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
   glClearColor(0.0,0.0,0.0,0.0); // Set the bg colour
   
   glutDisplayFunc(myDisplay);// Callback function
-  glutIdleFunc(myDisplay); // Display this while idling
+  //glutIdleFunc(myDisplay); // Display this while idling
   glutMainLoop();// Display everything and wait
 }
