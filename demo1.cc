@@ -402,9 +402,14 @@ void GuptaSproull(int x0, int y0, int x1, int y1) {
   if (y0 < y1) { sy = 1; }
   
   err = dx-dy;
+  denominator = 2.0*(sqrt(dx*dx + dy*dy));
+  dUpper = fabs((2.0*dx - 2.0*err)/(2.0*denominator));
+  dLower = fabs((2.0*dx + 2.0*err)/(2.0*denominator));
   
   do {
     putpixel(x0,y0,1.0);
+    putpixel(x0,y0+1,dUpper);
+    putpixel(x0,y0-1,dLower);
     
     if (x0==x1 && y0==y1) { break; }
     e2 = 2*err;
@@ -418,13 +423,9 @@ void GuptaSproull(int x0, int y0, int x1, int y1) {
       y0 = y0 + sy;
     }
     
-    numerator = err;
     denominator = 2.0*(sqrt(dx*dx + dy*dy));
-    dUpper = (2.0*dx - 2.0*numerator)/(2.0*denominator);
-    dLower = (2.0*dx + 2.0*numerator)/(2.0*denominator);
-    
-    putpixel(x0,y0+1,dUpper);
-    putpixel(x0,y0-1,dLower);
+    dUpper = (2.0*dx - 2.0*err)/(2.0*denominator);
+    dLower = (2.0*dx + 2.0*err)/(2.0*denominator);
   } while (true);
 }
 
@@ -472,11 +473,36 @@ void DDALine(int x1, int y1, int x2, int y2) {
 }
 
 /**********************************/
+/*            Shear               */
+/**********************************/
+
+void Shear(Vector3f &v1, Vector3f &v2, Vector3f &v3, float sx, float sy) {
+  v1[0] += (sx*v1[2]);
+  v1[1] += (sy*v1[2]);
+  
+  v2[0] += (sx*v2[2]);
+  v2[1] += (sy*v2[2]);
+  
+  v3[0] += (sx*v3[2]);
+  v3[1] += (sy*v3[2]);
+}
+
+/**********************************/
 /*          Translation           */
 /**********************************/
 
 void Translate(Vector3f &v1, Vector3f &v2, Vector3f &v3, int tx, int ty, int tz) {
-
+  v1[0] += tx;
+  v1[1] += ty;
+  v1[2] += tz;
+  
+  v2[0] += tx;
+  v2[1] += ty;
+  v2[2] += tz;
+  
+  v3[0] += tx;
+  v3[1] += ty;
+  v3[2] += tz;
 }
 
 /**********************************/
@@ -606,11 +632,22 @@ void myDisplay()
   int trignum = trig.trigNum();
   Vector3f v1, v2, v3;
   
+  // Rotate by:
   float  ax         = 0.6f;
   float  ay         = 0.6f;
   float  az         = 0.6f;
+  
+  // Translate by: 
+  int    tx         = 20;
+  int    ty         = 20;
+  int    tz         = 20;
+  
+  // Shear by:
+  float  sx         = 1.0;
+  float  sy         = 1.0;
+  
   double alpha      = 1.0;
-  float  scaleCoeff = 20.0f;
+  float  scaleCoeff = 1.0f;
   int    lineWidth  = 1;
   int    rotateSpeed= 2;
   
@@ -622,9 +659,10 @@ void myDisplay()
     trig.getTriangleVertices(i, v1,v2,v3);
     
     // Let's manipulate the vertices!
-    Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
-    Scale(v1, v2, v3, scaleCoeff);
-    //Translate();
+    //Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
+    //Scale(v1, v2, v3, scaleCoeff);
+    //Translate(v1, v2, v3, tx, ty, tz);
+    Shear(v1,v2,v3,sx,sy); // To keep things simple, only shear x,y
     
     glBegin(GL_POINTS);
       glVertex2i((int)v1[0],(int)v1[1]);
@@ -633,9 +671,9 @@ void myDisplay()
       
       // Let's draw some lines!
       //DoDDA(v1,v2,v3);           // Simple DDA lines
-      //DoBresenham(v1,v2,v3);     // Standard bresenham/midpoint lines
+      DoBresenham(v1,v2,v3);     // Standard bresenham/midpoint lines
       //DoSymwuline(v1,v2,v3);     // Wu patterns
-      DoGS(v1,v2,v3);            // Gupta-Sproul + anti-aliasing
+      //DoGS(v1,v2,v3);            // Gupta-Sproul + anti-aliasing
       //DoAAL(v1,v2,v3,lineWidth); // Anti-aliased lines, hard to see
       //DoEFLA(v1,v2,v3);          // An Extremely Fast Line Algorithm (found on the web)
     glEnd();
@@ -667,6 +705,6 @@ int main(int argc, char **argv)
   glClearColor(0.0,0.0,0.0,0.0); // Set the bg colour
   
   glutDisplayFunc(myDisplay);// Callback function
-  //glutIdleFunc(myDisplay); // Display this while idling
+  glutIdleFunc(myDisplay); // Display this while idling
   glutMainLoop();// Display everything and wait
 }
