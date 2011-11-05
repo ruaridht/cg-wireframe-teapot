@@ -733,7 +733,7 @@ void myDisplay()
 		trig.getTriangleVertices(i, v1,v2,v3);
     
     //Rotate(v1, v2, v3, rotation*ax, rotation*ay, rotation*az);
-    Scale(v1, v2, v3, scaleCoeff);
+    //Scale(v1, v2, v3, scaleCoeff);
     //Translate();
     
 		glBegin(GL_POINTS);
@@ -745,8 +745,8 @@ void myDisplay()
 			glVertex2i((int)v3[0],(int)v3[1]);
 			
 			//DoMidpoint(v1,v2,v3);
-			//DoBresenham(v1,v2,v3);
-		  DoXiaolinWu(v1,v2,v3);
+			DoBresenham(v1,v2,v3);
+		  //DoXiaolinWu(v1,v2,v3);
 			//DoSymwuline(v1,v2,v3);
 			//DoGS(v1,v2,v3);
 			//DoAAB(v1,v2,v3);
