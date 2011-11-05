@@ -46,7 +46,7 @@ inline int IntPart(float n) {
   return (int)floor(n);
 }
 
-// Classes
+// Classes ...
 
 class Vector3f;
 class Triangle;
