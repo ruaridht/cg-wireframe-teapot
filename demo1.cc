@@ -633,7 +633,7 @@ void DoEFLA(Vector3f v1, Vector3f v2, Vector3f v3) {
 /*            Display             */
 /**********************************/
 
-void myDisplay()
+void myRefresh()
 {
   glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
   
@@ -641,18 +641,15 @@ void myDisplay()
   Vector3f v1, v2, v3;
   
   // Translate by: 
-  int    tx         = 20;
-  int    ty         = 20;
-  int    tz         = 20;
+  int tx = 0;
+  int ty = 0;
+  int tz = 0;
   
   // Shear by:
-  float  sx         = 1.0;
-  float  sy         = 1.0;
+  float sx = 1.0;
+  float sy = 1.0;
   
-  double alpha      = 1.0;
-  float  scaleCoeff = 1.0f;
-  int    lineWidth  = 1;
-  int    rotateSpeed= 2;
+  float scaleCoeff = 1.0f;
   
   glColor4f(1.0,1.0,1.0,1.0); // Needed for every algorithm except anti-aliasing
   
@@ -675,15 +672,12 @@ void myDisplay()
       // Let's draw some lines!
       //DoDDA(v1,v2,v3);           // Simple DDA lines
       DoBresenham(v1,v2,v3);     // Standard bresenham/midpoint lines
-      //DoSymwuline(v1,v2,v3);     // Wu patterns
+      //DoWuLine(v1,v2,v3);     // Wu patterns
       //DoGS(v1,v2,v3);            // Gupta-Sproul + anti-aliasing
-      //DoAAL(v1,v2,v3,lineWidth); // Anti-aliased lines, hard to see
+      //DoAAL(v1,v2,v3,1); // Anti-aliased lines, hard to see
       //DoEFLA(v1,v2,v3);          // An Extremely Fast Line Algorithm (found on the web)
     glEnd();
   }
-  rx += 0.5;
-  ry += 0.5;
-  rz += 0.5;
   
   glFlush(); // Output everything
 }
@@ -694,8 +688,7 @@ void myKB(unsigned char key, int x, int y)
   
   int trignum = trig.trigNum();
   Vector3f v1, v2, v3;
-  
-  // Rotate by:
+
   if (key == 'w') {
     rz += rotation;
   } else if (key == 's') {
@@ -706,45 +699,20 @@ void myKB(unsigned char key, int x, int y)
     ry += rotation;
   }
   
-  // Translate by: 
-  int    tx         = 20;
-  int    ty         = 20;
-  int    tz         = 20;
-  
-  // Shear by:
-  float  sx         = 1.0;
-  float  sy         = 1.0;
-  
-  double alpha      = 1.0;
-  float  scaleCoeff = 1.0f;
-  int    lineWidth  = 1;
-  
   glColor4f(1.0,1.0,1.0,1.0); // Needed for every algorithm except anti-aliasing
   
-  //cout << "Rotate x: " << rotation*ax << " ";
-  // for all the triangles, get the location of the vertices,
-  // project them on the xy plane, and color the corresponding pixel by white
   for (int i = 0; i < trignum-1; i++) {
     trig.getTriangleVertices(i, v1,v2,v3);
     
     // Let's manipulate the vertices!
     Rotate(v1, v2, v3, rx, ry, rz);
-    //Scale(v1, v2, v3, scaleCoeff);
-    //Translate(v1, v2, v3, tx, ty, tz);
-    //Shear(v1,v2,v3,sx,sy); // To keep things simple, only shear x,y
     
     glBegin(GL_POINTS);
       glVertex2i((int)v1[0],(int)v1[1]);
       glVertex2i((int)v2[0],(int)v2[1]);
       glVertex2i((int)v3[0],(int)v3[1]);
       
-      // Let's draw some lines!
-      //DoDDA(v1,v2,v3);           // Simple DDA lines
-      DoBresenham(v1,v2,v3);     // Standard bresenham/midpoint lines
-      //DoSymwuline(v1,v2,v3);     // Wu patterns
-      //DoGS(v1,v2,v3);            // Gupta-Sproul + anti-aliasing
-      //DoAAL(v1,v2,v3,lineWidth); // Anti-aliased lines, hard to see
-      //DoEFLA(v1,v2,v3);          // An Extremely Fast Line Algorithm (found on the web)
+      DoBresenham(v1,v2,v3);
     glEnd();
   }
   
@@ -795,7 +763,65 @@ void myMotion(int x, int y) {
 	prevX = x;
 	prevY = y;
 	
-	myDisplay();
+	myRefresh();
+}
+
+/**********************************/
+/*          For Marker            */
+/**********************************/
+
+void myDisplay()
+{
+  glClear(GL_COLOR_BUFFER_BIT); // Clear OpenGL Window
+  
+  int trignum = trig.trigNum();
+  Vector3f v1, v2, v3;
+  
+  // Translate by:
+  // Change these to change the translation on each axis.
+  int tx = 100;
+  int ty = 100;
+  int tz = 0;
+  
+  // Shear by:
+  // Change these values to affect the shear amount (note: keep between 0.0 and 2.0)
+  float sx = 1.0;  // Shear amount on x-axis
+  float sy = 1.0;  // shear amount on y-axis
+  
+  float  scaleCoeff = 3.0f; // Scale the object by this
+  
+  glColor4f(1.0,1.0,1.0,1.0); // Needed for every algorithm except anti-aliasing
+  
+  for (int i = 0; i < trignum-1; i++) {
+    trig.getTriangleVertices(i, v1,v2,v3);
+    
+    // -------MANIPULATE----------
+    // -------Uncomment to use
+    //Rotate(v1, v2, v3, rx, ry, rz);
+    //Scale(v1, v2, v3, scaleCoeff);
+    //Translate(v1, v2, v3, tx, ty, tz);
+    //Shear(v1,v2,v3,sx,sy); // To keep things simple, only shear x,y
+    
+    glBegin(GL_POINTS);
+      glVertex2i((int)v1[0],(int)v1[1]);
+      glVertex2i((int)v2[0],(int)v2[1]);
+      glVertex2i((int)v3[0],(int)v3[1]);
+      
+      // ---------LINE DRAWING-----------
+      // -------Uncomment to use
+      //DoDDA(v1,v2,v3);        // Simple DDA lines
+      DoBresenham(v1,v2,v3);    // Standard bresenham/midpoint lines
+      //DoWuLine(v1,v2,v3);     // Wu patterns
+      //DoGS(v1,v2,v3);         // Gupta-Sproul + anti-aliasing
+      //DoAAL(v1,v2,v3,1);      // Anti-aliased lines, hard to see
+      //DoEFLA(v1,v2,v3);       // An Extremely Fast Line Algorithm (found on the web)
+    glEnd();
+  }
+  rx += 0.5;
+  ry += 0.5;
+  rz += 0.5;
+  
+  glFlush(); // Output everything
 }
 
 int main(int argc, char **argv)
@@ -820,8 +846,12 @@ int main(int argc, char **argv)
   glClearColor(0.0,0.0,0.0,0.0); // Set the bg colour
   
   glutSetKeyRepeat(GLUT_KEY_REPEAT_ON);
-  
   glutDisplayFunc(myDisplay);// Callback function
+  
+  /* ---- To Set Interactive ---------
+   * Comment out glutIdleFunc() and uncomment glutKeyboardFunc(),
+   * glutMouseFunc(), glutMotionFunc() to switch to an interactive 'mode'.
+   */
   glutIdleFunc(myDisplay); // Display this while idling
   //glutKeyboardFunc(myKB);
   //glutMouseFunc(myMouse);
