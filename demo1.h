@@ -60,7 +60,7 @@ class Vector3f {
 
 	float & operator [] (int i) {
 		return _item[i];
-    	}
+  }
 
 	Vector3f(float _x, float _y, float _z) 
 	{  _item[0] = _x ; _item[1] = _y ; _item[2] = _z; };
@@ -85,6 +85,9 @@ class Vector3f {
 
 		return *this;
 	};
+	
+	Vector3f Cross(Vector3f& v);
+  Vector3f& Normalize();
 };
 
 ostream & operator << (ostream & stream, Vector3f & obj) 
