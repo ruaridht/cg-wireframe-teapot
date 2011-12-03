@@ -143,13 +143,13 @@ class Vector3f {
 		return *this;
 	};
 	
-	Vector3f & operator * (float t)
+	Vector3f & operator *= (float t)
 	{
     _item[0] *= t;
     _item[1] *= t;
     _item[2] *= t;
     
-    //return *this;
+    return *this;
 	};
 };
 
@@ -198,7 +198,27 @@ public:
 	{
     return _trig[i];
 	}
-			
+  
+  int getTriangleVertexIndex1(int i)
+  {
+    int i1 = _trig[i]._vertex[0];
+    //int i2 = _trig[i]._vertex[1];
+    //int i3 = _trig[i]._vertex[2];
+    //int inds[] = { i1, i2, i3 };
+    return i1;
+  }
+  
+  int getTriangleVertexIndex2(int i)
+  {
+    int i2 = _trig[i]._vertex[1];
+    return i2;
+  }
+  
+  int getTriangleVertexIndex3(int i)
+  {
+    int i3 = _trig[i]._vertex[2];
+    return i3;
+  }
 };
 
 // blah

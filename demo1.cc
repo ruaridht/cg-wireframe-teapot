@@ -46,7 +46,7 @@ float    Ka; // Ambient coefficient (intensity)
 float    Kd; // Diffuse coefficient
 float    Ks; // Specular coefficient
 float    Att; // Attenuation coefficient
-int      small_n; // Shine/roughness
+int      small_n; // Shine/roughness (specular hardness)
 Vector3f big_N; // Surface normal
 Vector3f light; // Light vector
 Vector3f reflection; // Reflection vector
@@ -71,6 +71,12 @@ Vector3f Cross(Vector3f& v1, Vector3f& v2)
   return Vector3f(x, y, z);	
 }
 
+float dot(Vector3f& v1, Vector3f& v2)
+{
+  float dot = (v1[0]*v2[0]) + (v1[1]*v2[1]) + (v1[2]*v2[2]);
+  return dot;
+}
+
 void normalise(Vector3f& v)
 {
   const float Length = sqrtf(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
@@ -80,6 +86,12 @@ void normalise(Vector3f& v)
   v[0] = x;
   v[1] = y;
   v[2] = z;
+}
+
+float length(Vector3f& v)
+{
+  float len = sqrtf( (v[0]*v[0]) + (v[1]*v[1]) + (v[2]*v[2]) );
+  return len;
 }
 
 /**********************************/
@@ -156,10 +168,9 @@ void SetPixel(int x, int y, Color &col) {
   glVertex2i(x,y);
 }
 
-Vector3f lerp(float t, Vector3f v1, Vector3f v2)
-{
-  Vector3f n = t*v1 + (1-t)*v2;
-  return n;
+void putpixel(int x, int y, float alpha) {
+  glColor4f(1.0,1.0,1.0,alpha);
+  glVertex2i(x,y);
 }
 
 /**********************************/
@@ -252,26 +263,105 @@ void computeNormals()
   delete [] num_faces_for_vertex;
 }
 
-Vector3f phong 
-
 void drawSpan(const Span &span, int y, int trignum)
 {
-	int xdiff = span.X2 - span.X1;
-	if(xdiff == 0)
-		return;
-
-	Color colordiff = span.Color2 - span.Color1;
-
-	float factor = 0.0f;
-	float factorStep = 1.0f / (float)xdiff;
-	
-	
-
+  /*
+  Vector3f normal = face_normals[trignum];
+  Vector3f pos = Vector3f(0.0,y,0.0);
 	// draw each pixel in the span
 	for(int x = span.X1; x < span.X2; x++) {
-    Color col = span.Color1 + (colordiff * factor);
-		SetPixel(x, y, col); //span.Color1 + (colordiff * factor));
-		factor += factorStep;
+    pos[0] = x;
+    Vector3f lightDir = Vector3f(light[0]-pos[0], light[1]-pos[1], light[2]-pos[2]);
+    float distance = length(lightDir);
+    distance = distance*distance;
+    normalise(lightDir);
+    float i = dot(lightDir, normal);
+    if (i > 1.0){ i = 1.0; } else if (i < 0.0){ i = 0.0; }
+    
+    //Vector3f diffuse = i * Dx * Kd / distance;
+    Vector3f diffuse = Vector3f(i*Dx.R*Kd/distance, i*Dx.G*Kd/distance, i*Dx.B*Kd/distance);
+    
+    Vector3f h = Vector3f(lightDir[0] + view[0], lightDir[1] + view[1], lightDir[2] + view[2]);
+    normalise(h);
+    
+    float i_temp = dot(normal,h);
+    if (i_temp > 1.0){ i_temp = 1.0; } else if (i_temp < 0.0){ i_temp = 0.0; }
+    
+    i = pow(i_temp, small_n);
+    
+    //Vector3f specular = i * Ds * Ks / distance;
+    Vector3f specular = Vector3f(i*Sx.R*Ks/distance, i*Sx.G*Ks/distance, i*Sx.B*Ks/distance);
+    
+    //Vector3f col = specular + diffuse; // + ambient;
+    Color col = Color(specular[0]+diffuse[0], specular[1]+diffuse[1], specular[2]+diffuse[2], 1.0f);
+    
+		SetPixel(x, y, col);
+	}
+	*/
+	
+	Vector3f v1,v2,v3;
+	trig.getTriangleVertices(trignum,v1,v2,v3);
+	
+	//Triangle triggy = trig.getTriangle(trignum);
+	
+	int X1 = (int)v1[0];
+	int X2 = (int)v2[0];
+	int X3 = (int)v3[0];
+	int Y1 = (int)v1[1];
+	int Y2 = (int)v2[1];
+	int Y3 = (int)v3[1];
+	
+	float detA = (float)( (X1*Y2)-(X1*Y3)-(X2*Y1)+(X2*Y3)+(X3*Y1)-(X3*Y2) );
+	
+	int v_ind1 = trig.getTriangleVertexIndex1(trignum);
+	int v_ind2 = trig.getTriangleVertexIndex2(trignum);
+	int v_ind3 = trig.getTriangleVertexIndex3(trignum);
+	Vector3f v1_n = vertex_normals[v_ind1];
+	Vector3f v2_n = vertex_normals[v_ind2];
+	Vector3f v3_n = vertex_normals[v_ind3];
+	
+	//printf("indices: %i, %i, %i\n", v_ind1, v_ind2, v_ind3);
+	
+	for (int x = span.X1; x<span.X2; x++) {
+    // Get the barycentric coords
+    float detA1 = (float)( (x*Y2)-(x*Y3)-(X2*y)+(X2*Y3)+(X3*y)-(X3*Y2) );
+    float detA2 = (float)( (X1*y)-(X1*Y3)-(x*Y1)+(x*Y3)+(X3*Y1)-(X3*y) );
+    float detA3 = (float)( (X1*Y2)-(X1*y)-(X2*Y1)+(X2*y)+(x*Y1)-(x*Y2) );
+  	
+  	float u = detA1 / detA;
+  	float v = detA2 / detA;
+  	float w = detA3 / detA;
+  	
+  	int pz = u*v1[2] + v*v2[2] + w*v3[2];
+  	//if (pz < 0.0) continue; // Don't draw anything at the back..
+  	
+  	Vector3f point_norm = Vector3f(u*v1_n[0] + v*v2_n[0] + w*v3_n[0], u*v1_n[1] + v*v2_n[1] + w*v3_n[1], u*v1_n[2] + v*v2_n[2] + w*v3_n[2]);
+  	
+  	Vector3f L_vect = Vector3f(x-light[0], y-light[1], pz-light[2]);
+  	normalise(L_vect);
+  	Vector3f V_vect = Vector3f(x-view[0], y-view[1], pz-view[2]); // pz should never be larger than view[2]=200
+  	//normalise(V_vect);
+  	float reflec = dot(V_vect, point_norm);
+  	Vector3f ref2 = Vector3f(reflec*2*point_norm[0]-V_vect[0], reflec*2*point_norm[1]-V_vect[1], reflec*2*point_norm[2]-V_vect[2]);
+  	normalise(ref2);
+  	
+  	float nDotL = dot(point_norm, light);
+  	float vDotR = dot(V_vect, ref2);
+  	vDotR = pow(vDotR, small_n);
+  	
+  	float red = Ax.R*Ka + Lx.R*( Dx.R*nDotL + Sx.R*vDotR );
+  	float green = Ax.G*Ka + Lx.G*( Dx.G*nDotL + Sx.G*vDotR );
+  	float blue = Ax.B*Ka + Lx.B*( Dx.B*nDotL + Sx.B*vDotR );
+  	
+  	if ((u + v + w) > 1.01) {
+      printf("What the fuck? Lambdas: %f, %f, %f \n", u, v, w);
+      printf("Added: %f\n", u+v+w);
+      printf("For triangle: %i\n", trignum);
+      exit(1);
+  	}
+   	
+   	Color col = Color(red, green, blue, 1.0f);
+    SetPixel(x, y, col);
 	}
 }
 
@@ -498,21 +588,22 @@ int main(int argc, char **argv)
   Lx = Color(1.0f,1.0f,1.0f,1.0f); // Light colour is white
   Ax = Color(0.4f,0.8f,0.4f,1.0f); // Ambient colour is greeny
   Dx = Color(0.8f,0.8f,0.8f,1.0f); // Diffuse set
-  Sx = Color(0.0f,0.0f,0.0f,0.0f); // Specular set to nothing
+  Sx = Color(0.5f,0.5f,0.5f,1.0f); // Specular set to nothing
   Ka = 0.8f; // Ambient coefficient (intensity)
-  Kd = 0.8f; // Diffuse coefficient
-  Ks = 0.0f; // Specular coefficient
-  Att = 0.6; // Attenuation coefficient
-  small_n = 20; // Shine/roughness
+  Kd = 0.6f; // Diffuse coefficient
+  Ks = 0.6f; // Specular coefficient
+  Att = 0.6f; // Attenuation coefficient
+  small_n = 2; // Shine/roughness
   
   //Vector3f big_N; // Surface normal of pixel
-  light = Vector(200.0,150.0,150.0); // Vector from light to pixel
+  Vector3f ll = Vector3f(200.0f,150.0f,150.0f);
+  light = ll; // Vector from light to pixel
   //Vector3f reflection; // Reflection vector from pixel
-  view = Vector3f(0.0,0.0,200.0); // Vector from pixel to eye (or viceversa) (0.0,0.0,1.0)
-  
+  Vector3f vv = Vector3f(0.0f,0.0f,200.0f);
+  view = vv; // Vector from pixel to eye (or viceversa) (0.0,0.0,1.0)
   
   // We can precomputer the ambient colour
-  ambient = (Ax*Ka)*Dx;
+  ambient = Color(Ax.R*Ka*Dx.R, Ax.G*Ka*Dx.G, Ax.B*Ka*Dx.B);
   
   populateNormals();
   computeNormals();
