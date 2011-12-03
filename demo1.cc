@@ -47,9 +47,7 @@ float    Kd; // Diffuse coefficient
 float    Ks; // Specular coefficient
 float    Att; // Attenuation coefficient
 int      small_n; // Shine/roughness (specular hardness)
-Vector3f big_N; // Surface normal
 Vector3f light; // Light vector
-Vector3f reflection; // Reflection vector
 Vector3f view; // View vector
 
 Color ambient;
@@ -265,40 +263,6 @@ void computeNormals()
 
 void drawSpan(const Span &span, int y, int trignum)
 {
-  /*
-  Vector3f normal = face_normals[trignum];
-  Vector3f pos = Vector3f(0.0,y,0.0);
-	// draw each pixel in the span
-	for(int x = span.X1; x < span.X2; x++) {
-    pos[0] = x;
-    Vector3f lightDir = Vector3f(light[0]-pos[0], light[1]-pos[1], light[2]-pos[2]);
-    float distance = length(lightDir);
-    distance = distance*distance;
-    normalise(lightDir);
-    float i = dot(lightDir, normal);
-    if (i > 1.0){ i = 1.0; } else if (i < 0.0){ i = 0.0; }
-    
-    //Vector3f diffuse = i * Dx * Kd / distance;
-    Vector3f diffuse = Vector3f(i*Dx.R*Kd/distance, i*Dx.G*Kd/distance, i*Dx.B*Kd/distance);
-    
-    Vector3f h = Vector3f(lightDir[0] + view[0], lightDir[1] + view[1], lightDir[2] + view[2]);
-    normalise(h);
-    
-    float i_temp = dot(normal,h);
-    if (i_temp > 1.0){ i_temp = 1.0; } else if (i_temp < 0.0){ i_temp = 0.0; }
-    
-    i = pow(i_temp, small_n);
-    
-    //Vector3f specular = i * Ds * Ks / distance;
-    Vector3f specular = Vector3f(i*Sx.R*Ks/distance, i*Sx.G*Ks/distance, i*Sx.B*Ks/distance);
-    
-    //Vector3f col = specular + diffuse; // + ambient;
-    Color col = Color(specular[0]+diffuse[0], specular[1]+diffuse[1], specular[2]+diffuse[2], 1.0f);
-    
-		SetPixel(x, y, col);
-	}
-	*/
-	
 	Vector3f v1,v2,v3;
 	trig.getTriangleVertices(trignum,v1,v2,v3);
 	
@@ -333,25 +297,30 @@ void drawSpan(const Span &span, int y, int trignum)
   	float w = detA3 / detA;
   	
   	int pz = u*v1[2] + v*v2[2] + w*v3[2];
-  	//if (pz < 0.0) continue; // Don't draw anything at the back..
+  	if (pz < 0.0) continue; // Don't draw anything at the back..
   	
   	Vector3f point_norm = Vector3f(u*v1_n[0] + v*v2_n[0] + w*v3_n[0], u*v1_n[1] + v*v2_n[1] + w*v3_n[1], u*v1_n[2] + v*v2_n[2] + w*v3_n[2]);
   	
   	Vector3f L_vect = Vector3f(x-light[0], y-light[1], pz-light[2]);
   	normalise(L_vect);
   	Vector3f V_vect = Vector3f(x-view[0], y-view[1], pz-view[2]); // pz should never be larger than view[2]=200
-  	//normalise(V_vect);
+  	normalise(V_vect);
+  	//normalise(point_norm);
+  	
+  	//r = i - (2 * n * dot(i, n))
   	float reflec = dot(V_vect, point_norm);
-  	Vector3f ref2 = Vector3f(reflec*2*point_norm[0]-V_vect[0], reflec*2*point_norm[1]-V_vect[1], reflec*2*point_norm[2]-V_vect[2]);
+  	Vector3f ref2 = Vector3f(V_vect[0] - reflec*2*point_norm[0], V_vect[1] - reflec*2*point_norm[1], V_vect[2] - reflec*2*point_norm[2]);
   	normalise(ref2);
   	
-  	float nDotL = dot(point_norm, light);
+  	float nDotL = dot(point_norm, L_vect);
   	float vDotR = dot(V_vect, ref2);
   	vDotR = pow(vDotR, small_n);
+  	//vDotR = fabs(vDotR);
+  	//nDotL = fabs(nDotL);
   	
-  	float red = Ax.R*Ka + Lx.R*( Dx.R*nDotL + Sx.R*vDotR );
-  	float green = Ax.G*Ka + Lx.G*( Dx.G*nDotL + Sx.G*vDotR );
-  	float blue = Ax.B*Ka + Lx.B*( Dx.B*nDotL + Sx.B*vDotR );
+  	float red = Ax.R*Ka + Att*Lx.R*( Kd*Dx.R*nDotL + Ks*Sx.R*vDotR );
+  	float green = Ax.G*Ka + Att*Lx.G*( Kd*Dx.G*nDotL + Ks*Sx.G*vDotR );
+  	float blue = Ax.B*Ka + Att*Lx.B*( Kd*Dx.B*nDotL + Ks*Sx.B*vDotR );
   	
   	if ((u + v + w) > 1.01) {
       printf("What the fuck? Lambdas: %f, %f, %f \n", u, v, w);
@@ -360,7 +329,13 @@ void drawSpan(const Span &span, int y, int trignum)
       exit(1);
   	}
    	
+   	
+   	
    	Color col = Color(red, green, blue, 1.0f);
+   	//printf("RGB: %f, %f, %f\n", red,green,blue);
+   	//printf("nDotl, vDotR: %f, %f\n", nDotL, vDotR);
+   	//exit(1);
+   	
     SetPixel(x, y, col);
 	}
 }
@@ -587,11 +562,11 @@ int main(int argc, char **argv)
   // set our parameters
   Lx = Color(1.0f,1.0f,1.0f,1.0f); // Light colour is white
   Ax = Color(0.4f,0.8f,0.4f,1.0f); // Ambient colour is greeny
-  Dx = Color(0.8f,0.8f,0.8f,1.0f); // Diffuse set
-  Sx = Color(0.5f,0.5f,0.5f,1.0f); // Specular set to nothing
-  Ka = 0.8f; // Ambient coefficient (intensity)
-  Kd = 0.6f; // Diffuse coefficient
-  Ks = 0.6f; // Specular coefficient
+  Dx = Color(1.0f,1.0f,1.0f,1.0f); // Diffuse set
+  Sx = Color(1.0f,1.0f,1.0f,1.0f); // Specular set to nothing
+  Ka = 1.0f; // Ambient coefficient (intensity)
+  Kd = 0.9f; // Diffuse coefficient
+  Ks = 0.1f; // Specular coefficient
   Att = 0.6f; // Attenuation coefficient
   small_n = 2; // Shine/roughness
   
