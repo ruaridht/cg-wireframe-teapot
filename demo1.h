@@ -14,6 +14,8 @@
 #  include <GL/glut.h>
 #endif
 
+#include "Color.h"
+
 using namespace std;
 
 #ifdef M_PI
@@ -46,11 +48,66 @@ inline int IntPart(float n) {
   return (int)floor(n);
 }
 
+inline int iround(double x)
+{
+  return (int)floor(x + 0.5);
+}
+
 // Classes
 
 class Vector3f;
 class Triangle;
 class TriangleMesh;
+class Edge;
+class Span;
+
+class Edge
+{
+	public:
+		Color Color1, Color2;
+		int X1, Y1, X2, Y2;
+
+		Edge(const Color &color1, int x1, int y1, const Color &color2, int x2, int y2)
+		{
+		  if(y1 < y2) {
+    		Color1 = color1;
+    		X1 = x1;
+    		Y1 = y1;
+    		Color2 = color2;
+    		X2 = x2;
+    		Y2 = y2;
+    	} else {
+    		Color1 = color2;
+    		X1 = x2;
+    		Y1 = y2;
+    		Color2 = color1;
+    		X2 = x1;
+    		Y2 = y1;
+    	}
+		}
+};
+
+class Span
+{
+	public:
+		Color Color1, Color2;
+		int X1, X2;
+
+		Span(const Color &color1, int x1, const Color &color2, int x2)
+		{
+		  if(x1 < x2) {
+    		Color1 = color1;
+    		X1 = x1;
+    		Color2 = color2;
+    		X2 = x2;
+    	} else {
+    		Color1 = color2;
+    		X1 = x2;
+    		Color2 = color1;
+    		X2 = x1;
+    	}
+		}
+};
 
 class Vector3f {
 
@@ -86,8 +143,14 @@ class Vector3f {
 		return *this;
 	};
 	
-	Vector3f Cross(Vector3f& v);
-  Vector3f& Normalize();
+	Vector3f & operator * (float t)
+	{
+    _item[0] *= t;
+    _item[1] *= t;
+    _item[2] *= t;
+    
+    //return *this;
+	};
 };
 
 ostream & operator << (ostream & stream, Vector3f & obj) 
@@ -98,9 +161,10 @@ ostream & operator << (ostream & stream, Vector3f & obj)
 class Triangle {
 friend class TriangleMesh;
 
-	int _vertex[3];
+	//int _vertex[3];
 public:
-
+  int _vertex[3];
+  
 	Triangle(int v1, int v2, int v3) 
 	{
 		_vertex[0] = v1;  _vertex[1] = v2;  _vertex[2] = v3;  
@@ -129,7 +193,20 @@ public:
 		v2 = _v[_trig[i]._vertex[1]]; 
 		v3 = _v[_trig[i]._vertex[2]]; 
 	}
+	
+	Triangle getTriangle(int i)
+	{
+    return _trig[i];
+	}
 			
 };
+
+// blah
+inline void printVector3f(Vector3f v)
+{
+	printf("%f,", v[0] );
+	printf("%f,", v[1] );
+	printf("%f  ", v[2] );
+}
 
 #endif //_rt_H
