@@ -35,7 +35,8 @@ TriangleMesh trig;
 // For shading
 vector<Vector3f> face_normals;
 vector<Vector3f> vertex_normals;
-float z_buffer[640][480];
+float z_buffer[640][480] = {0};
+//vector< vector<float> > z_buffer;
 
 Color lx; // Result colour
 Color Lx; // Light colour
@@ -251,12 +252,12 @@ void computeNormals()
     
     vertex_normals[i] = v;
   }
-  
+  /*
   Vector3f v = vertex_normals[0];
   printf("Vertex 0\n");
   printVector3f(v);
   printf("\n");
-  
+  */
   // Because we're preparing the array after run time
   delete [] num_faces_for_vertex;
 }
@@ -296,8 +297,15 @@ void drawSpan(const Span &span, int y, int trignum)
   	float v = detA2 / detA;
   	float w = detA3 / detA;
   	
-  	int pz = u*v1[2] + v*v2[2] + w*v3[2];
-  	if (pz < 0.0) continue; // Don't draw anything at the back..
+  	float pz = u*v1[2] + v*v2[2] + w*v3[2];
+  	//if (pz < 0.0) continue; // Don't draw anything at the back..
+  	//if (y<0 || x<0) {continue;}
+  	
+  	if (pz < z_buffer[y+108][x+190]) {
+      continue;
+  	} else {
+      z_buffer[y+108][x+190] = pz;
+  	}
   	
   	Vector3f point_norm = Vector3f(u*v1_n[0] + v*v2_n[0] + w*v3_n[0], u*v1_n[1] + v*v2_n[1] + w*v3_n[1], u*v1_n[2] + v*v2_n[2] + w*v3_n[2]);
   	
@@ -561,17 +569,17 @@ int main(int argc, char **argv)
   
   // set our parameters
   Lx = Color(1.0f,1.0f,1.0f,1.0f); // Light colour is white
-  Ax = Color(0.4f,0.8f,0.4f,1.0f); // Ambient colour is greeny
+  Ax = Color(0.6f,0.8f,0.4f,1.0f); // Ambient colour is greeny
   Dx = Color(1.0f,1.0f,1.0f,1.0f); // Diffuse set
   Sx = Color(1.0f,1.0f,1.0f,1.0f); // Specular set to nothing
   Ka = 1.0f; // Ambient coefficient (intensity)
-  Kd = 0.9f; // Diffuse coefficient
+  Kd = 0.8f; // Diffuse coefficient
   Ks = 0.1f; // Specular coefficient
   Att = 0.6f; // Attenuation coefficient
-  small_n = 2; // Shine/roughness
+  small_n = 6; // Shine/roughness
   
   //Vector3f big_N; // Surface normal of pixel
-  Vector3f ll = Vector3f(200.0f,150.0f,150.0f);
+  Vector3f ll = Vector3f(0.0f,0.0f,200.0f);
   light = ll; // Vector from light to pixel
   //Vector3f reflection; // Reflection vector from pixel
   Vector3f vv = Vector3f(0.0f,0.0f,200.0f);
